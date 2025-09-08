@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Creator Challenge Bot - README</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+        }
+        h3 {
+            color: #2c3e50;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        ul, ol {
+            margin: 15px 0;
+            padding-left: 25px;
+        }
+        li {
+            margin: 8px 0;
+        }
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        pre {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+        pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+        blockquote {
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+            padding: 10px 20px;
+            background-color: #f8f9fa;
+            font-style: italic;
+        }
+        .emoji {
+            font-size: 1.2em;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .architecture-diagram {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            white-space: pre;
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+        .mermaid {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        hr {
+            border: none;
+            height: 2px;
+            background: linear-gradient(to right, #3498db, #2ecc71);
+            margin: 40px 0;
+        }
+        .highlight {
+            background-color: #fff3cd;
+            padding: 15px;
+            border-left: 4px solid #ffc107;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Creator Challenge Bot (Discord) — MVP v0.2</h1>
+        
+        <p>A Discord bot purpose-built for content creators (YouTube, TikTok, Instagram, podcasts, newsletters) to run time-bound challenges, track submissions, award points, and show leaderboards — right inside a server channel.</p>
+        
+        <hr>
+        
+        <h2><span class="emoji">✨</span> What you can do (MVP)</h2>
+        
+        <ul>
+            <li><code>/create-challenge</code> — Post a challenge with title, description, and cadence (one-time, daily, weekly, monthly).</li>
+            <li><code>/list-challenges</code> — See active challenges.</li>
+            <li><code>/submit</code> — Submit text, a link, and/or an attachment (image/video) to a specific challenge.</li>
+            <li><code>/leaderboard</code> — See the top participants by points.</li>
+            <li>Automatic 👍 and ❤️ reactions on each submission message so the community can vote.</li>
+            <li>Points awarded for submissions (+1) and for each upvote (configurable in code).</li>
+        </ul>
+        
+        <blockquote>
+            <strong>Roadmap (built-in scaffolding):</strong> Recurring challenge automation, badges via roles, series, prize picks, and web dashboard.
+        </blockquote>
+        
+        <hr>
+        
+        <h2><span class="emoji">🧠</span> Creator-focused example challenges</h2>
+        
+        <ul>
+            <li><strong>Hook Writing Sprint:</strong> write 3 hooks for a topic in 10 minutes.</li>
+            <li><strong>Editing Sprint:</strong> 15 min cut of raw footage into a tight montage.</li>
+            <li><strong>B‑roll Scavenger Hunt:</strong> capture 5 textures (glass, wood, skin, fabric, stone).</li>
+            <li><strong>Thumbnail Redesign:</strong> remake a thumbnail for yesterday's upload.</li>
+            <li><strong>Caption A/B Test:</strong> write 2 captions; post both; report CTR.</li>
+            <li><strong>Pitch & Outreach:</strong> send 3 collab DMs; share the template.</li>
+            <li><strong>Talking Head Reps:</strong> record a 60‑sec take; aim for 1-breath sentences.</li>
+            <li><strong>Keyword/Topic Deep Dive:</strong> find 5 long-tails for your niche.</li>
+            <li><strong>CTA Crafting:</strong> write a single-sentence CTA variant.</li>
+            <li><strong>Voiceover Practice:</strong> rewrite a paragraph for clarity and record it.</li>
+        </ul>
+        
+        <hr>
+        
+        <h2><span class="emoji">🏗</span> Project Structure</h2>
+        
+        <pre><code>creator-challenge-bot/
+├─ .env.example
+├─ package.json
+├─ README.md
+├─ data/                      # SQLite database lives here (created on first run)
+├─ scripts/
+│  └─ reset-db.js             # Danger: deletes & recreates schema
+└─ src/
+   ├─ config.js               # Loads env vars & config accessors
+   ├─ db.js                   # Main SQLite setup, schema, and helpers (preferred)
+   ├─ index.js                # Bot bootstrap, event wiring
+   ├─ deploy-commands.js      # Registers slash commands
+   ├─ database/
+   │  └─ db.js                # Legacy DB file (can be removed in cleanup)
+   ├─ services/
+   │  ├─ challenges.js        # Challenge CRUD & queries
+   │  └─ points.js            # Points/leaderboard
+   └─ commands/               # Slash command handlers
+      ├─ ping.js
+      ├─ createChallenge.js
+      ├─ listChallenges.js
+      ├─ submit.js
+      └─ leaderboard.js</code></pre>
+        
+        <hr>
+        
+        <h2><span class="emoji">🔐</span> Setup (one-time)</h2>
+        
+        <ol>
+            <li><strong>Create a Discord application & bot</strong>
+                <ul>
+                    <li>Go to the <a href="https://discord.com/developers/applications">Discord Developer Portal</a> → New Application.</li>
+                    <li>Add a Bot; copy the Token.</li>
+                    <li>Enable Privileged Gateway Intents:
+                        <ul>
+                            <li>SERVER MEMBERS INTENT (if you plan to award roles for badges later).</li>
+                            <li>MESSAGE CONTENT INTENT is not required for this MVP.</li>
+                        </ul>
+                    </li>
+                    <li>Under OAuth2 → URL Generator, select scopes: <code>bot</code>, <code>applications.commands</code>.</li>
+                    <li>Bot permissions (minimum for MVP): <code>Send Messages</code>, <code>Embed Links</code>, <code>Read Message History</code>, <code>Add Reactions</code>, <code>Use Slash Commands</code>. If you'll auto‑assign roles for badges later, add <code>Manage Roles</code>.</li>
+                </ul>
+            </li>
+            <li><strong>Invite the bot to your server using the generated URL.</strong></li>
+            <li><strong>Clone & install</strong>
+                <pre><code>git clone &lt;your-repo-url&gt; creator-challenge-bot
+cd creator-challenge-bot
+cp .env.example .env
+# Fill .env with DISCORDTOKEN, CLIENTID, and (during dev) GUILDID
+npm install</code></pre>
+            </li>
+            <li><strong>Deploy slash commands (guild-scoped for instant updates during dev)</strong>
+                <pre><code>npm run deploy:commands</code></pre>
+            </li>
+            <li><strong>Run the bot</strong>
+                <pre><code>npm run start</code></pre>
+            </li>
+        </ol>
+        
+        <blockquote>
+            <strong>Tip:</strong> If commands don't show, make sure the bot is in the server referenced by <code>GUILDID</code>, re-run <code>deploy:commands</code>, or wait a few minutes for global registration (if you remove <code>GUILDID</code>).
+        </blockquote>
+        
+        <hr>
+        
+        <h2><span class="emoji">🗂</span> Data Model</h2>
+        
+        <h3>Tables</h3>
+        
+        <ul>
+            <li><strong>challenges</strong>
+                <ul>
+                    <li>id (PK)</li>
+                    <li>guild_id</li>
+                    <li>title</li>
+                    <li>description</li>
+                    <li>type (one-time|daily|weekly|monthly)</li>
+                    <li>created_by</li>
+                    <li>starts_at</li>
+                    <li>ends_at</li>
+                    <li>channel_id</li>
+                    <li>message_id</li>
+                    <li>is_active</li>
+                </ul>
+            </li>
+            <li><strong>submissions</strong>
+                <ul>
+                    <li>id (PK)</li>
+                    <li>challenge_id (FK)</li>
+                    <li>guild_id</li>
+                    <li>user_id</li>
+                    <li>username</li>
+                    <li>content_text</li>
+                    <li>attachment_url</li>
+                    <li>link_url</li>
+                    <li>message_id</li>
+                    <li>created_at</li>
+                    <li>votes</li>
+                </ul>
+            </li>
+            <li><strong>points</strong>
+                <ul>
+                    <li>guild_id</li>
+                    <li>user_id</li>
+                    <li>points (composite PK)</li>
+                </ul>
+            </li>
+        </ul>
+        
+        <h3>Points logic (MVP defaults)</h3>
+        <ul>
+            <li>+1 point for submitting.</li>
+            <li>+1 point per 👍 reaction on the submission embed (reaction events tracked).</li>
+        </ul>
+        
+        <hr>
+        
+        <h2><span class="emoji">🧩</span> How it fits together (dependencies & flow)</h2>
+        
+        <ul>
+            <li><code>src/index.js</code> boots the Discord client, loads commands, and wires events including <code>interactionCreate</code> and <code>messageReactionAdd</code>.</li>
+            <li><code>src/deploy-commands.js</code> registers slash commands built in files under <code>src/commands/</code>. Each command exports <code>{ data, execute }</code> where <code>data</code> is a SlashCommandBuilder description and <code>execute</code> handles the interaction.</li>
+            <li><code>src/db.js</code> initializes SQLite (using better-sqlite3) and creates tables on first run.</li>
+            <li><code>src/services/challenges.js</code> offers DB helpers to create/list challenges and record submissions. It's used by command handlers.</li>
+            <li><code>src/services/points.js</code> encapsulates points logic (increment on submission and reaction) and powers <code>/leaderboard</code>.</li>
+            <li><code>src/commands/*.js</code> are the user-facing command implementations.</li>
+            <li><code>scripts/reset-db.js</code> can wipe and recreate the schema (for testing).</li>
+        </ul>
+        
+        <hr>
+        
+        <h2><span class="emoji">🔗</span> ASCII Architecture Diagram</h2>
+        
+        <div class="architecture-diagram">                ┌──────────────────┐
+                │ Discord API       │
+                │  (Gateway + REST) │
+                └─────────┬────────┘
+                          │
+                 ┌────────▼────────┐
+                 │ src/index.js    │  (bot entrypoint, event loop)
+                 └───┬─────────┬───┘
+                     │         │
+        ┌────────────┘         └─────────────┐
+        │                                    │
+┌───────▼────────┐                  ┌────────▼────────┐
+│ commands/*.js  │                  │ services/*.js   │
+│ (SlashCmds)    │                  │ (logic layer)   │
+└───────┬────────┘                  └────────┬────────┘
+        │                                    │
+        │                                    │
+        │                           ┌────────▼────────┐
+        │                           │ src/db.js       │
+        │                           │ (SQLite schema) │
+        │                           └────────┬────────┘
+        │                                    │
+        │                           ┌────────▼────────┐
+        │                           │ data/bot.sqlite │
+        │                           └─────────────────┘</div>
+        
+        <hr>
+        
+        <h2><span class="emoji">🔗</span> Mermaid.js Architecture Diagram</h2>
+        
+        <div class="mermaid">
+graph TD
+  A[Discord API] --> B[src/index.js]
+  B --> C[commands/*.js]
+  B --> D[services/*.js]
+  C --> D
+  D --> E[src/db.js]
+  E --> F[data/bot.sqlite]
+        </div>
+        
+        <hr>
+        
+        <h2><span class="emoji">🚦</span> Usage Examples</h2>
+        
+        <ul>
+            <li><strong>Create a daily challenge</strong><br>
+                <code>/create-challenge title:"Hook Writing Sprint" description:"Write 3 hooks in 10 minutes" type:daily</code>
+            </li>
+            <li><strong>Submit with an image</strong><br>
+                <code>/submit challengeid:1 text:"Day 1 hooks" attachment:&lt;pick image&gt;</code>
+            </li>
+            <li><strong>List active challenges</strong><br>
+                <code>/list-challenges</code>
+            </li>
+            <li><strong>Show leaderboard</strong><br>
+                <code>/leaderboard</code>
+            </li>
+        </ul>
+        
+        <hr>
+        
+        <h2><span class="emoji">🧰</span> Configuration</h2>
+        
+        <p>Set these in <code>.env</code>:</p>
+        
+        <ul>
+            <li><code>DISCORDTOKEN</code> — your bot token (keep secret).</li>
+            <li><code>CLIENTID</code> — application ID (for command deployment).</li>
+            <li><code>GUILDID</code> — dev server ID for instant command deploys.</li>
+            <li><code>ANNOUNCECHANNELID</code> — (optional) default channel to post challenge embeds.</li>
+            <li><code>SUBMISSIONSCHANNELID</code> — (optional) where submission embeds are posted. If empty, the command's channel is used.</li>
+        </ul>
+        
+        <hr>
+        
+        <h2><span class="emoji">🛡</span> Permissions Notes</h2>
+        
+        <ul>
+            <li>The bot must see and speak in the channels you use.</li>
+            <li>For reaction-based voting, ensure the bot has <code>Add Reactions</code> and <code>Read Message History</code>.</li>
+            <li>If you later enable role-based badges, add <code>Manage Roles</code>.</li>
+        </ul>
+        
+        <hr>
+        
+        <h2><span class="emoji">🐛</span> Troubleshooting</h2>
+        
+        <ul>
+            <li><strong>Slash commands not appearing:</strong> double-check <code>CLIENTID</code>, <code>GUILDID</code>, and run <code>npm run deploy:commands</code>. Reinvite the bot if scopes/permissions changed.</li>
+            <li><strong>Reactions not counted:</strong> ensure the bot has <code>Add Reactions</code> and <code>Read Message History</code> and that partial structures are enabled (they are, in index.js). Reactions are only counted on bot-posted submission embeds.</li>
+            <li><strong>Database locked:</strong> avoid running multiple bot instances on the same SQLite file. For scale, switch to Postgres/Supabase.</li>
+            <li><strong>Attachments failing:</strong> Discord CDN links are saved; ensure the channel allows attachments.</li>
+        </ul>
+        
+        <hr>
+        
+        <h2><span class="emoji">🗺</span> Roadmap Ideas (next versions)</h2>
+        
+        <ul>
+            <li>Badge roles for milestones (5, 10, 25 submissions).</li>
+            <li>Auto-schedule recurring challenge posts with node-cron.</li>
+            <li>Admin-only prize selection flow with <code>/pick-winner</code>.</li>
+            <li>Web dashboard for browsing submissions & analytics.</li>
+            <li>Thread-per-challenge for cleaner discussions.</li>
+            <li>Multi-guild config table; per-guild points weights.</li>
+        </ul>
+        
+        <hr>
+        
+        <h2><span class="emoji">📄</span> License</h2>
+        
+        <p>MIT — use freely and customize for your community.</p>
+    </div>
+</body>
+</html>

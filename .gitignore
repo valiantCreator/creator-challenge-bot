@@ -1,0 +1,25 @@
+# .gitignore
+
+# Dependencies
+/node_modules
+
+# Environment Variables
+# This file contains your secret bot token. NEVER commit this.
+.env
+
+# Application Data
+# This is your live database. It should be backed up, but not versioned.
+/data/bot.sqlite
+/data/bot.sqlite-shm
+/data/bot.sqlite-wal
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# OS-generated files
+.DS_Store
+Thumbs.db
