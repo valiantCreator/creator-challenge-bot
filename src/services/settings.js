@@ -5,6 +5,8 @@
 const defaultSettings = {
   points_per_submission: 1,
   points_per_vote: 1,
+  // --- NEW: Add vote_emoji to default settings ---
+  vote_emoji: "👍",
 };
 
 /**
@@ -20,7 +22,7 @@ function getGuildSettings(db, guildId) {
 }
 
 /**
- * Updates the settings for a specific guild.
+ * Updates the point settings for a specific guild.
  * @param {import('better-sqlite3').Database} db The database connection instance.
  * @param {string} guildId The ID of the guild.
  * @param {object} newSettings An object with the settings to update.
@@ -30,9 +32,11 @@ function updateGuildSettings(db, guildId, newSettings) {
   const currentSettings = getGuildSettings(db, guildId);
   const updated = { ...currentSettings, ...newSettings };
 
+  // --- UPDATED: The upsert now includes the vote_emoji column ---
+  // This ensures that when we update point values, we don't lose the custom emoji setting.
   const stmt = db.prepare(`
-    INSERT INTO guild_settings (guild_id, points_per_submission, points_per_vote)
-    VALUES (@guild_id, @points_per_submission, @points_per_vote)
+    INSERT INTO guild_settings (guild_id, points_per_submission, points_per_vote, vote_emoji)
+    VALUES (@guild_id, @points_per_submission, @points_per_vote, @vote_emoji)
     ON CONFLICT(guild_id) DO UPDATE SET
       points_per_submission = excluded.points_per_submission,
       points_per_vote = excluded.points_per_vote
@@ -42,10 +46,34 @@ function updateGuildSettings(db, guildId, newSettings) {
     guild_id: guildId,
     points_per_submission: updated.points_per_submission,
     points_per_vote: updated.points_per_vote,
+    vote_emoji: updated.vote_emoji, // Persist the existing emoji setting
+  });
+}
+
+/**
+ * --- NEW: Sets the custom vote emoji for a guild ---
+ * @param {import('better-sqlite3').Database} db The database connection instance.
+ * @param {string} guildId The ID of the guild.
+ * @param {string} emoji The new emoji to use for votes.
+ * @returns {object} The result of the database operation.
+ */
+function setVoteEmoji(db, guildId, emoji) {
+  const stmt = db.prepare(`
+    INSERT INTO guild_settings (guild_id, vote_emoji)
+    VALUES (@guild_id, @vote_emoji)
+    ON CONFLICT(guild_id) DO UPDATE SET
+      vote_emoji = excluded.vote_emoji
+  `);
+
+  return stmt.run({
+    guild_id: guildId,
+    vote_emoji: emoji,
   });
 }
 
 module.exports = {
   getGuildSettings,
   updateGuildSettings,
+  // --- NEW: Export the new function ---
+  setVoteEmoji,
 };

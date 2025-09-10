@@ -30,6 +30,10 @@ async function checkAndAwardBadges(
   newTotalPoints,
   client
 ) {
+  // --- NEW: Guard clause for test environments ---
+  // If no client is provided (e.g., in a unit test), exit immediately.
+  if (!client) return;
+
   try {
     const guild = await client.guilds.fetch(guildId);
     const member = await guild.members.fetch(userId);
@@ -57,21 +61,38 @@ async function checkAndAwardBadges(
 }
 
 /**
- * Adds points and triggers a check for badge roles.
+ * Adds points, logs the transaction, and triggers a check for badge roles.
  * @param {import('better-sqlite3').Database} db The database connection.
  * @param {string} guildId
  * @param {string} userId
  * @param {number} amount
+ * @param {string} reason The reason for the point change (e.g., 'SUBMISSION', 'ADMIN_ADD').
  * @param {import('discord.js').Client} client The Discord client instance.
  */
-async function addPoints(db, guildId, userId, amount, client) {
-  const upsert = db.prepare(`
-    INSERT INTO points (guild_id, user_id, points)
-    VALUES (?, ?, ?)
-    ON CONFLICT(guild_id, user_id) DO UPDATE SET points = points + excluded.points
-  `);
-  upsert.run(guildId, userId, amount);
+async function addPoints(db, guildId, userId, amount, reason, client) {
+  // --- REFACTORED FOR V0.6 ---
+  // This function now uses a transaction to ensure data integrity. Both the log
+  // and the point total must be updated together, or not at all.
+  const transaction = db.transaction((data) => {
+    // Step 1: Insert a record into the point_logs ledger.
+    const logStmt = db.prepare(
+      `INSERT INTO point_logs (guild_id, user_id, points_awarded, reason) VALUES (?, ?, ?, ?)`
+    );
+    logStmt.run(data.guildId, data.userId, data.amount, data.reason);
 
+    // Step 2: Update the user's total score in the points cache table.
+    const upsertStmt = db.prepare(`
+      INSERT INTO points (guild_id, user_id, points)
+      VALUES (?, ?, ?)
+      ON CONFLICT(guild_id, user_id) DO UPDATE SET points = points + excluded.points
+    `);
+    upsertStmt.run(data.guildId, data.userId, data.amount);
+  });
+
+  // Execute the transaction with the provided data.
+  transaction({ guildId, userId, amount, reason });
+
+  // After the transaction is successful, check for badges.
   const { points } = getUserPoints(db, guildId, userId);
   await checkAndAwardBadges(db, guildId, userId, points, client);
 }
@@ -106,17 +127,57 @@ function recalculateUserPoints(db, userId, guildId) {
 }
 
 /**
- * Retrieves the leaderboard for a guild.
+ * Retrieves the leaderboard for a guild, with optional time-based filtering.
  * @param {import('better-sqlite3').Database} db The database connection.
  * @param {string} guildId The ID of the guild.
- * @param {number} limit The number of users to return.
+ * @param {number} [limit=10] The number of users to return.
+ * @param {('all-time'|'monthly'|'weekly')} [period='all-time'] The time period for the leaderboard.
  * @returns {Array<object>} A list of user point objects.
  */
-function getLeaderboard(db, guildId, limit = 10) {
+function getLeaderboard(db, guildId, limit = 10, period = "all-time") {
+  // --- REFACTORED FOR V0.6 ---
+  // Handles both all-time and time-filtered leaderboards.
+
+  if (period === "all-time") {
+    // For all-time, we use the fast, cached 'points' table.
+    const stmt = db.prepare(`
+      SELECT user_id, points FROM points WHERE guild_id = ? ORDER BY points DESC LIMIT ?
+    `);
+    return stmt.all(guildId, limit);
+  }
+
+  // For weekly or monthly, we calculate the start time and query the logs.
+  let days;
+  if (period === "weekly") {
+    days = 7;
+  } else if (period === "monthly") {
+    days = 30;
+  } else {
+    // Fallback to all-time for any invalid period string.
+    return getLeaderboard(db, guildId, limit, "all-time");
+  }
+
+  // Calculate the UNIX timestamp for the start of the period.
+  const since = Math.floor(Date.now() / 1000) - days * 24 * 60 * 60;
+
+  // This query sums all points from the logs within the time period for each user.
   const stmt = db.prepare(`
-    SELECT user_id, points FROM points WHERE guild_id = ? ORDER BY points DESC LIMIT ?
+    SELECT
+      user_id,
+      SUM(points_awarded) as points
+    FROM
+      point_logs
+    WHERE
+      guild_id = ? AND created_at >= ?
+    GROUP BY
+      user_id
+    HAVING
+        points > 0
+    ORDER BY
+      points DESC
+    LIMIT ?
   `);
-  return stmt.all(guildId, limit);
+  return stmt.all(guildId, since, limit);
 }
 
 /**

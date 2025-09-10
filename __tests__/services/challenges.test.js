@@ -39,14 +39,19 @@ describe("Challenges Service", () => {
       type: "one-time",
     });
 
+    // --- UPDATED: Added missing keys required by the SQL query ---
+    // The INSERT statement requires all named parameters to be present in the data object.
     const submissionData = {
-      challengeId,
-      guildId: "g1",
-      userId: "u1",
+      challenge_id: challengeId,
+      guild_id: "g1",
+      user_id: "u1",
       username: "TestUser",
-      channelId: "c1",
-      messageId: "m1",
-      threadId: "th1",
+      channel_id: "c1",
+      message_id: "m1",
+      thread_id: "th1",
+      content_text: "This is a test submission.", // Added this key
+      attachment_url: null, // Added this key
+      link_url: null, // Added this key
     };
     const submissionId = challengesService.recordSubmission(db, submissionData);
     const retrieved = challengesService.getSubmissionById(db, submissionId);

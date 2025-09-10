@@ -166,9 +166,9 @@ function getSubmissionsByUser(db, userId, guildId) {
 function getSubmissionsByUserId(db, guildId, userId, limit = 5) {
   const stmt = db.prepare(
     `SELECT id, challenge_id, message_id, channel_id, content_text FROM submissions 
-         WHERE guild_id = ? AND user_id = ? 
-         ORDER BY created_at DESC 
-         LIMIT ?`
+          WHERE guild_id = ? AND user_id = ? 
+          ORDER BY created_at DESC 
+          LIMIT ?`
   );
   return stmt.all(guildId, userId, limit);
 }

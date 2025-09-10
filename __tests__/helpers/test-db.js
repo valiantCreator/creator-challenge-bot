@@ -14,7 +14,7 @@ function setupTestDb() {
   db.exec(`CREATE TABLE challenges (
       id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT NOT NULL, title TEXT NOT NULL,
       description TEXT, type TEXT NOT NULL, created_by TEXT, starts_at INTEGER,
-      ends_at INTEGER, channel_id TEXT, message_id TEXT, thread_id TEXT, -- MODIFIED: Added thread_id
+      ends_at INTEGER, channel_id TEXT, message_id TEXT, thread_id TEXT,
       is_active INTEGER NOT NULL DEFAULT 1, is_template INTEGER NOT NULL DEFAULT 0,
       cron_schedule TEXT
   );`);
@@ -32,13 +32,31 @@ function setupTestDb() {
   );`);
   db.exec(`CREATE TABLE guild_settings (
       guild_id TEXT PRIMARY KEY, points_per_submission INTEGER NOT NULL DEFAULT 1,
-      points_per_vote INTEGER NOT NULL DEFAULT 1
+      points_per_vote INTEGER NOT NULL DEFAULT 1,
+      vote_emoji TEXT NOT NULL DEFAULT '👍'
   );`);
   db.exec(`CREATE TABLE badge_roles (
       id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id TEXT NOT NULL,
       role_id TEXT NOT NULL, points_required INTEGER NOT NULL,
       UNIQUE(guild_id, role_id)
   );`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS point_logs (
+        log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        points_awarded INTEGER NOT NULL,
+        reason TEXT NOT NULL CHECK(reason IN ('SUBMISSION', 'VOTE_RECEIVED', 'WINNER_BONUS', 'ADMIN_ADD', 'ADMIN_REMOVE', 'SUBMISSION_DELETED')),
+        related_id TEXT,
+        operator_id TEXT,
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+  );`);
+  db.exec(
+    `CREATE INDEX IF NOT EXISTS idx_point_logs_guild_timestamp ON point_logs (guild_id, created_at DESC);`
+  );
+  db.exec(
+    `CREATE INDEX IF NOT EXISTS idx_point_logs_user ON point_logs (guild_id, user_id);`
+  );
 
   return db;
 }

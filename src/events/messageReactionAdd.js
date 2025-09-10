@@ -11,12 +11,9 @@ module.exports = {
   async execute(reaction, user) {
     if (user.bot) return;
 
-    // --- (FIX) Critical Null Check & Fetch Order ---
-    // We must fetch partials first. Then, we can safely check the author.
     if (reaction.message.partial) await reaction.message.fetch();
     if (reaction.partial) await reaction.fetch();
 
-    // The message author can be null in some edge cases. If so, ignore.
     if (
       !reaction.message.author ||
       reaction.message.author.id !== reaction.client.user.id
@@ -24,10 +21,14 @@ module.exports = {
       return;
     }
 
-    // We only care about the thumbs-up emoji for points.
-    if (reaction.emoji.name !== "👍") return;
-
     const db = reaction.client.db;
+    const settings = settingsService.getGuildSettings(
+      db,
+      reaction.message.guildId
+    );
+
+    // --- UPDATED: Check against the dynamic vote_emoji ---
+    if (reaction.emoji.name !== settings.vote_emoji) return;
 
     try {
       const submission = challengesService.getSubmissionByMessageId(
@@ -37,12 +38,12 @@ module.exports = {
 
       if (!submission) return;
 
-      // --- Self-Vote Prevention ---
       if (user.id === submission.user_id) {
         await reaction.users.remove(user.id);
         try {
+          // --- UPDATED: Use dynamic emoji in the DM ---
           await user.send(
-            "You can't vote for your own submission! Your 👍 has been removed."
+            `You can't vote for your own submission! Your ${settings.vote_emoji} has been removed.`
           );
         } catch (dmError) {
           console.warn(`Could not send self-vote DM to user ${user.id}.`);
@@ -50,16 +51,12 @@ module.exports = {
         return;
       }
 
-      // --- Award Points for a Valid Vote ---
-      const settings = settingsService.getGuildSettings(
-        db,
-        reaction.message.guildId
-      );
       await pointsService.addPoints(
         db,
         reaction.message.guildId,
         submission.user_id,
         settings.points_per_vote,
+        "VOTE_RECEIVED",
         reaction.client
       );
 

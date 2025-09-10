@@ -11,7 +11,6 @@ module.exports = {
   async execute(reaction, user) {
     if (user.bot) return;
 
-    // --- (FIX) Critical Null Check & Fetch Order ---
     if (reaction.message.partial) await reaction.message.fetch();
     if (reaction.partial) await reaction.fetch();
 
@@ -22,9 +21,14 @@ module.exports = {
       return;
     }
 
-    if (reaction.emoji.name !== "👍") return;
-
     const db = reaction.client.db;
+    const settings = settingsService.getGuildSettings(
+      db,
+      reaction.message.guildId
+    );
+
+    // --- UPDATED: Check against the dynamic vote_emoji ---
+    if (reaction.emoji.name !== settings.vote_emoji) return;
 
     try {
       const submission = challengesService.getSubmissionByMessageId(
@@ -35,15 +39,12 @@ module.exports = {
       if (!submission) return;
       if (user.id === submission.user_id) return;
 
-      const settings = settingsService.getGuildSettings(
-        db,
-        reaction.message.guildId
-      );
       await pointsService.addPoints(
         db,
         reaction.message.guildId,
         submission.user_id,
         -settings.points_per_vote,
+        "VOTE_RECEIVED",
         reaction.client
       );
 

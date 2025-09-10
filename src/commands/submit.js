@@ -36,6 +36,11 @@ module.exports = {
 
     try {
       const db = interaction.client.db;
+      // --- UPDATED: Fetch settings early to get the vote_emoji ---
+      const settings = settingsService.getGuildSettings(
+        db,
+        interaction.guildId
+      );
       const challengeId = interaction.options.getInteger("challenge_id", true);
       const text = interaction.options.getString("text");
       const link = interaction.options.getString("link");
@@ -64,7 +69,6 @@ module.exports = {
         });
       }
 
-      // Fetch the dedicated challenge thread.
       const thread = await interaction.guild.channels.fetch(
         challenge.thread_id
       );
@@ -79,8 +83,6 @@ module.exports = {
         });
       }
 
-      // First, we need to create the submission in the database to get its ID.
-      // We will post a temporary message in the thread and edit it later.
       const placeholderMessage = await thread.send({
         content: "Processing your submission...",
       });
@@ -90,7 +92,7 @@ module.exports = {
         guild_id: interaction.guildId,
         user_id: interaction.user.id,
         username: interaction.user.username,
-        channel_id: thread.id, // The submission is in the thread
+        channel_id: thread.id,
         message_id: placeholderMessage.id,
         thread_id: thread.id,
         content_text: text,
@@ -98,7 +100,6 @@ module.exports = {
         link_url: link,
       });
 
-      // Build the final embed now that we have the submissionId.
       const submissionEmbed = new EmbedBuilder()
         .setColor("#57F287")
         .setAuthor({
@@ -120,31 +121,26 @@ module.exports = {
         }
       }
 
-      // Set the timestamp and then the footer to ensure the footer text is not overwritten.
       submissionEmbed.setTimestamp(new Date());
+      // --- UPDATED: Use the dynamic vote_emoji in the footer ---
       submissionEmbed.setFooter({
-        text: `Submission ID: ${submissionId} • Vote with 👍`,
+        text: `Submission ID: ${submissionId} • Vote with ${settings.vote_emoji}`,
       });
 
-      // Now, edit the placeholder message with the final, complete embed.
       await placeholderMessage.edit({
-        content: "", // Remove the placeholder text
+        content: "",
         embeds: [submissionEmbed],
       });
 
-      // Add the reaction for voting.
-      await placeholderMessage.react("👍");
+      // --- UPDATED: React with the dynamic vote_emoji ---
+      await placeholderMessage.react(settings.vote_emoji);
 
-      // Award points for the submission.
-      const settings = settingsService.getGuildSettings(
-        db,
-        interaction.guildId
-      );
       await pointsService.addPoints(
         db,
         interaction.guildId,
         interaction.user.id,
         settings.points_per_submission,
+        "SUBMISSION",
         interaction.client
       );
 

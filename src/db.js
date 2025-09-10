@@ -16,7 +16,6 @@ const db = new Database(dbPath);
 try {
   db.exec("PRAGMA journal_mode = WAL;");
 
-  // --- challenges table now includes thread_id ---
   db.exec(`CREATE TABLE IF NOT EXISTS challenges (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       guild_id TEXT NOT NULL,
@@ -61,8 +60,20 @@ try {
   db.exec(`CREATE TABLE IF NOT EXISTS guild_settings (
         guild_id TEXT PRIMARY KEY,
         points_per_submission INTEGER NOT NULL DEFAULT 1,
-        points_per_vote INTEGER NOT NULL DEFAULT 1
+        points_per_vote INTEGER NOT NULL DEFAULT 1,
+        vote_emoji TEXT NOT NULL DEFAULT '👍'
   );`);
+
+  // --- NEW: Add vote_emoji column to guild_settings if it doesn't exist ---
+  // This is a simple migration to support upgrading existing databases.
+  try {
+    db.prepare("SELECT vote_emoji FROM guild_settings LIMIT 1").get();
+  } catch (e) {
+    db.exec(
+      "ALTER TABLE guild_settings ADD COLUMN vote_emoji TEXT NOT NULL DEFAULT '👍'"
+    );
+    console.log("Database migrated: Added 'vote_emoji' to guild_settings.");
+  }
 
   db.exec(`CREATE TABLE IF NOT EXISTS badge_roles (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -71,6 +82,24 @@ try {
         points_required INTEGER NOT NULL,
         UNIQUE(guild_id, role_id)
   );`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS point_logs (
+        log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        points_awarded INTEGER NOT NULL,
+        reason TEXT NOT NULL CHECK(reason IN ('SUBMISSION', 'VOTE_RECEIVED', 'WINNER_BONUS', 'ADMIN_ADD', 'ADMIN_REMOVE', 'SUBMISSION_DELETED')),
+        related_id TEXT,
+        operator_id TEXT,
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+  );`);
+
+  db.exec(
+    `CREATE INDEX IF NOT EXISTS idx_point_logs_guild_timestamp ON point_logs (guild_id, created_at DESC);`
+  );
+  db.exec(
+    `CREATE INDEX IF NOT EXISTS idx_point_logs_user ON point_logs (guild_id, user_id);`
+  );
 
   console.log("Database initialized successfully.");
 } catch (error) {

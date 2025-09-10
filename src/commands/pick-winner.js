@@ -81,11 +81,13 @@ module.exports = {
       }
 
       // --- Action 1: Award Points ---
+      // --- UPDATED: Added 'WINNER_BONUS' reason to the addPoints call ---
       await pointsService.addPoints(
         db,
         interaction.guildId,
         winner.id,
         bonusPoints,
+        "WINNER_BONUS",
         interaction.client
       );
 
