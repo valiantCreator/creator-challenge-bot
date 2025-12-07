@@ -1,6 +1,6 @@
 // client/src/pages/ChallengeDetails.jsx
 // Purpose: Displays the full gallery of submissions for a specific challenge.
-// Gemini: Updated to include Admin Delete functionality (v0.9.2).
+// Gemini: Updated to include Link field in User Submission Form (v1.0.1).
 
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
@@ -13,6 +13,12 @@ function ChallengeDetails({ user }) {
   const [challenge, setChallenge] = useState(null);
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Gemini: State for the Submission Form
+  const [caption, setCaption] = useState("");
+  const [link, setLink] = useState(""); // Gemini: New Link State
+  const [file, setFile] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     // Gemini: Fetch both challenge details and submissions in parallel
@@ -34,6 +40,52 @@ function ChallengeDetails({ user }) {
 
     fetchData();
   }, [id]);
+
+  // Gemini: Handle File Selection
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
+  };
+
+  // Gemini: Handle New Submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    // Validation: Require at least one content field
+    if (!file && !caption && !link) {
+      alert("Please add a file, caption, or link!");
+      return;
+    }
+
+    setIsSubmitting(true);
+    const formData = new FormData();
+    formData.append("caption", caption);
+    formData.append("link", link); // Gemini: Send the link
+    if (file) {
+      formData.append("file", file);
+    }
+
+    try {
+      await axios.post(`/api/challenges/${id}/submit`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      // Reset form
+      setCaption("");
+      setLink("");
+      setFile(null);
+      setIsSubmitting(false);
+      alert("Submission successful!");
+
+      // Refresh the list to show the new item
+      const newSubRes = await axios.get(`/api/challenges/${id}/submissions`);
+      setSubmissions(newSubRes.data);
+    } catch (error) {
+      console.error("Submission error:", error);
+      alert("Failed to submit. Please try again.");
+      setIsSubmitting(false);
+    }
+  };
 
   // Gemini: Handle the delete action
   const handleDelete = async (submissionId) => {
@@ -73,10 +125,54 @@ function ChallengeDetails({ user }) {
         </div>
       </header>
 
+      {/* Gemini: Submission Form Section */}
+      {/* Only show if user is logged in */}
+      {user ? (
+        <div className="submission-form-container">
+          <h3>Submit Your Entry</h3>
+          <form onSubmit={handleSubmit} className="submission-form">
+            {/* Gemini: New Link Input */}
+            <input
+              type="url"
+              placeholder="Add a link (optional)..."
+              value={link}
+              onChange={(e) => setLink(e.target.value)}
+              className="text-input"
+            />
+            <textarea
+              placeholder="Write a caption..."
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              rows="3"
+            />
+            <div className="form-actions">
+              <input
+                type="file"
+                accept="image/*,video/*"
+                onChange={handleFileChange}
+                className="file-input"
+              />
+              <button
+                type="submit"
+                className="submit-btn"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Uploading..." : "Post Submission"}
+              </button>
+            </div>
+            {file && <div className="file-preview">Selected: {file.name}</div>}
+          </form>
+        </div>
+      ) : (
+        <div className="login-prompt">
+          <p>Want to submit an entry? Please log in above!</p>
+        </div>
+      )}
+
       <div className="gallery-grid">
         {submissions.length === 0 ? (
           <div className="empty-state">
-            No submissions yet! Be the first to submit in Discord.
+            No submissions yet! Be the first to submit.
           </div>
         ) : (
           submissions.map((sub) => (
