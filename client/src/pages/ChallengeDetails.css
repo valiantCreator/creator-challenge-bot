@@ -1,0 +1,129 @@
+/* client/src/pages/ChallengeDetails.css */
+
+.details-page {
+  animation: fadeIn 0.3s ease-in;
+}
+
+.back-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  display: inline-block;
+}
+
+.back-link:hover {
+  color: var(--accent);
+}
+
+.details-header {
+  margin-bottom: 3rem;
+  border-bottom: 1px solid #373a40;
+  padding-bottom: 2rem;
+}
+
+.details-header h1 {
+  font-size: 2.5rem;
+  margin: 0 0 1rem 0;
+  color: var(--text-primary);
+}
+
+.details-header p {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  max-width: 800px;
+  line-height: 1.6;
+}
+
+.meta-info {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* Gallery Grid */
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 2rem;
+}
+
+/* Submission Card */
+.submission-card {
+  background-color: var(--card-bg);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #373a40;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s;
+}
+
+.submission-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent);
+}
+
+.media-preview img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  display: block;
+}
+
+.submission-content {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.submission-text {
+  font-size: 0.95rem;
+  color: #e4e4e7;
+  margin: 0 0 1rem 0;
+  font-style: italic;
+  flex-grow: 1;
+}
+
+.submission-link {
+  display: block;
+  margin-bottom: 1rem;
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.submission-link:hover {
+  text-decoration: underline;
+}
+
+.submission-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid #373a40;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.votes {
+  color: var(--success);
+  font-weight: bold;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

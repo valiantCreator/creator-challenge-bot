@@ -174,6 +174,20 @@ function getSubmissionsByUserId(db, guildId, userId, limit = 5) {
 }
 
 /**
+ * // Gemini: Added for Web API
+ * Retrieves all submissions for a specific challenge.
+ * @param {import('better-sqlite3').Database} db The database connection.
+ * @param {number} challengeId The ID of the challenge.
+ * @returns {Array<object>} A list of submission objects.
+ */
+function getSubmissionsByChallengeId(db, challengeId) {
+  const stmt = db.prepare(
+    "SELECT * FROM submissions WHERE challenge_id = ? ORDER BY votes DESC, created_at ASC"
+  );
+  return stmt.all(challengeId);
+}
+
+/**
  * Gets a single submission by its unique message ID.
  * @param {import('better-sqlite3').Database} db The database connection.
  * @param {string} messageId The message's ID.
@@ -275,5 +289,6 @@ module.exports = {
   addBadgeRole,
   getBadgeRoles,
   removeBadgeRole,
-  getSubmissionsByUserId, // Added new function
+  getSubmissionsByUserId,
+  getSubmissionsByChallengeId, // Gemini: Exported new function
 };

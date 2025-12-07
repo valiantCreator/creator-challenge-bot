@@ -1,0 +1,61 @@
+/* client/src/App.css */
+/* Gemini: Basic styling for the dashboard skeleton */
+
+:root {
+  --bg-color: #1a1b1e;
+  --card-bg: #25262b;
+  --text-primary: #ffffff;
+  --text-secondary: #a1a1aa;
+  --accent: #5865f2; /* Discord Blurple */
+  --success: #57f287;
+  --danger: #ed4245;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+.app-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+header {
+  margin-bottom: 3rem;
+  border-bottom: 1px solid #373a40;
+  padding-bottom: 1rem;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+header p {
+  color: var(--text-secondary);
+  margin: 0.5rem 0 0 0;
+}
+
+.status-card {
+  background-color: var(--card-bg);
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  max-width: 400px;
+}
+
+.online-tag {
+  color: var(--success);
+  font-weight: bold;
+}
+
+.error {
+  color: var(--danger);
+  font-weight: bold;
+}

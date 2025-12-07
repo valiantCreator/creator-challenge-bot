@@ -13,6 +13,8 @@ const {
 const config = require("./config");
 const { initializeScheduler } = require("./services/scheduler");
 const { db } = require("./db"); // Import the database instance
+// Gemini: Import the API starter function
+const { startServer } = require("./api");
 
 const client = new Client({
   intents: [
@@ -66,6 +68,9 @@ client.once(Events.ClientReady, (c) => {
   console.log(`✅ Logged in as ${c.user.tag}`);
   // (FIX) Pass the db connection from the client to the scheduler.
   initializeScheduler(c.db, c);
+
+  // Gemini: Start the Web API Server once the bot is ready
+  startServer(c);
 });
 
 // --- Interaction Handler ---
