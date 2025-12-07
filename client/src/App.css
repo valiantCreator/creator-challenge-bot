@@ -59,3 +59,59 @@ header p {
   color: var(--danger);
   font-weight: bold;
 }
+
+/* Gemini: Authentication UI Styles */
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.login-btn {
+  background-color: #5865f2; /* Discord Brand Color */
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.login-btn:hover {
+  background-color: #4752c4;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background-color: #2b2d31;
+  padding: 0.5rem 1rem;
+  border-radius: 50px;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+.username {
+  font-weight: 500;
+  color: white;
+}
+
+.logout-btn {
+  background: none;
+  border: none;
+  color: #fa5252;
+  cursor: pointer;
+  font-size: 0.8rem;
+  text-decoration: underline;
+}
+
+.logout-btn:hover {
+  color: #ff8787;
+}
