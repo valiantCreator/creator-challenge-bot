@@ -1,12 +1,14 @@
 // client/src/pages/ChallengeDetails.jsx
 // Purpose: Displays the full gallery of submissions for a specific challenge.
+// Gemini: Updated to include Admin Delete functionality (v0.9.2).
 
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 import "./ChallengeDetails.css";
 
-function ChallengeDetails() {
+// Gemini: 'user' prop passed from App.jsx contains { isAdmin: true/false }
+function ChallengeDetails({ user }) {
   const { id } = useParams(); // Get the ID from the URL (e.g., /challenge/5)
   const [challenge, setChallenge] = useState(null);
   const [submissions, setSubmissions] = useState([]);
@@ -32,6 +34,26 @@ function ChallengeDetails() {
 
     fetchData();
   }, [id]);
+
+  // Gemini: Handle the delete action
+  const handleDelete = async (submissionId) => {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this submission? This cannot be undone."
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await axios.delete(`/api/submissions/${submissionId}`);
+      // Remove the item from the UI immediately so we don't need to refresh
+      setSubmissions(submissions.filter((sub) => sub.id !== submissionId));
+    } catch (error) {
+      alert("Failed to delete. You might not be authorized.");
+      console.error(error);
+    }
+  };
 
   if (loading) return <div className="loading">Loading Gallery...</div>;
   if (!challenge) return <div className="error">Challenge not found.</div>;
@@ -94,6 +116,17 @@ function ChallengeDetails() {
                   </span>
                   <span className="votes">👍 {sub.votes}</span>
                 </div>
+
+                {/* Gemini: Admin Controls - Only visible to Admins */}
+                {user && user.isAdmin && (
+                  <button
+                    className="delete-btn"
+                    onClick={() => handleDelete(sub.id)}
+                    title="Admin Delete"
+                  >
+                    🗑️ Delete
+                  </button>
+                )}
               </div>
             </div>
           ))

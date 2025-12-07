@@ -127,3 +127,23 @@
     transform: translateY(0);
   }
 }
+
+/* Gemini: Admin Delete Button */
+.delete-btn {
+  margin-top: 1rem;
+  background-color: transparent;
+  border: 1px solid #ed4245; /* Discord Red */
+  color: #ed4245;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  width: 100%;
+  transition: all 0.2s;
+  font-weight: 600;
+}
+
+.delete-btn:hover {
+  background-color: #ed4245;
+  color: white;
+}

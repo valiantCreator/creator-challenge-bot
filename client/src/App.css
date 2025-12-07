@@ -115,3 +115,16 @@ header p {
 .logout-btn:hover {
   color: #ff8787;
 }
+
+/* Gemini: Admin Badge Styles */
+.admin-badge {
+  background-color: #ffd700; /* Gold */
+  color: #000;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-right: 8px;
+  letter-spacing: 0.05em;
+  box-shadow: 0 0 5px rgba(255, 215, 0, 0.4);
+}
