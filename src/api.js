@@ -1,15 +1,21 @@
 // src/api.js
 // Purpose: Express web server to serve data to the dashboard frontend.
-// Gemini: Updated to fix Session Cookie settings and add Session Check endpoint (v0.9.3).
+// Gemini: Updated to handle Link field in User Submissions (v1.0.1).
 
 const express = require("express");
 const cors = require("cors");
 const querystring = require("querystring");
 const cookieSession = require("cookie-session");
+const multer = require("multer"); // Gemini: Added for file uploads
+const fs = require("fs"); // Gemini: Added for file system cleanup
+const path = require("path"); // Gemini: Added for file path handling
 const challengesService = require("./services/challenges");
 const pointsService = require("./services/points");
 const settingsService = require("./services/settings");
 const { PermissionFlagsBits } = require("discord.js");
+
+// Gemini: Configure Multer (Temporary storage for uploads)
+const upload = multer({ dest: "uploads/" });
 
 /**
  * Starts the Express API server.
@@ -40,13 +46,12 @@ function startServer(client) {
   app.use(express.json());
 
   // Gemini: Configure Session Middleware
-  // This encrypts your user data and stores it in a browser cookie.
   app.use(
     cookieSession({
       name: "session",
-      keys: [CLIENT_SECRET || "fallback_secret"], // Use your secret to sign the cookie so it can't be faked
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      secure: false, // CRITICAL: Must be false for http://localhost development
+      keys: [CLIENT_SECRET || "fallback_secret"],
+      maxAge: 24 * 60 * 60 * 1000,
+      secure: false,
       httpOnly: true,
       sameSite: "lax",
     })
@@ -59,14 +64,12 @@ function startServer(client) {
       bot: client.user.tag,
       uptime: process.uptime(),
       guildId: GUILD_ID,
-      // Gemini: helpful for debugging auth state
       user: req.session.user ? req.session.user.username : "guest",
     });
   });
 
   // --- OAuth2 Endpoint: Login ---
   app.get("/api/auth/login", (req, res) => {
-    // Gemini: We request 'identify' (profile) and 'guilds' (server list with permissions)
     const scope = "identify guilds";
     const params = querystring.stringify({
       client_id: CLIENT_ID,
@@ -86,7 +89,6 @@ function startServer(client) {
     }
 
     try {
-      // 1. Exchange the code for an Access Token
       const tokenResponse = await fetch(
         "https://discord.com/api/oauth2/token",
         {
@@ -110,7 +112,6 @@ function startServer(client) {
         return res.redirect("/?error=token_exchange_failed");
       }
 
-      // 2. Fetch the User's Profile
       const [userRes, guildRes] = await Promise.all([
         fetch("https://discord.com/api/users/@me", {
           headers: { Authorization: `Bearer ${tokenData.access_token}` },
@@ -123,16 +124,12 @@ function startServer(client) {
       const userData = await userRes.json();
       const guildsData = await guildRes.json();
 
-      // 3. Security & Admin Check
-      // Find the specific guild object for our server
       const targetGuild = guildsData.find((g) => g.id === GUILD_ID);
 
       if (!targetGuild) {
-        // User is not in the server at all
         return res.redirect("/?error=not_a_member");
       }
 
-      // Gemini: Check Permissions
       const permissions = BigInt(targetGuild.permissions);
       const MANAGE_GUILD = 0x20n;
       const ADMINISTRATOR = 0x8n;
@@ -141,7 +138,6 @@ function startServer(client) {
         (permissions & ADMINISTRATOR) === ADMINISTRATOR ||
         (permissions & MANAGE_GUILD) === MANAGE_GUILD;
 
-      // 4. Create Session Object
       const sessionUser = {
         id: userData.id,
         username: userData.username,
@@ -149,13 +145,9 @@ function startServer(client) {
         isAdmin: isAdmin,
       };
 
-      // Gemini: SAVE TO SECURE COOKIE
       req.session.user = sessionUser;
-
-      // Manually enforce maxAge to ensure the browser respects it
       req.sessionOptions.maxAge = 24 * 60 * 60 * 1000;
 
-      // 5. Success! Redirect to home (Frontend checks /api/auth/me)
       res.redirect("/");
     } catch (error) {
       console.error("OAuth Callback Error:", error);
@@ -163,7 +155,7 @@ function startServer(client) {
     }
   });
 
-  // --- Gemini: NEW Endpoint - Check Session (Fixes refresh logout) ---
+  // --- Endpoint: Check Session ---
   app.get("/api/auth/me", (req, res) => {
     if (req.session && req.session.user) {
       res.json(req.session.user);
@@ -174,11 +166,11 @@ function startServer(client) {
 
   // --- Endpoint: Logout ---
   app.post("/api/auth/logout", (req, res) => {
-    req.session = null; // Clear the cookie
+    req.session = null;
     res.json({ success: true });
   });
 
-  // --- Endpoint: Get All Active Challenges ---
+  // --- DATA ENDPOINTS ---
   app.get("/api/challenges", (req, res) => {
     try {
       const challenges = challengesService.listActiveChallenges(
@@ -192,7 +184,6 @@ function startServer(client) {
     }
   });
 
-  // --- Endpoint: Get a Single Challenge ---
   app.get("/api/challenges/:id", (req, res) => {
     try {
       const challengeId = req.params.id;
@@ -211,7 +202,6 @@ function startServer(client) {
     }
   });
 
-  // --- Endpoint: Get Submissions for a Challenge ---
   app.get("/api/challenges/:id/submissions", (req, res) => {
     try {
       const challengeId = req.params.id;
@@ -229,12 +219,10 @@ function startServer(client) {
     }
   });
 
-  // --- Endpoint: Leaderboard ---
   app.get("/api/leaderboard", (req, res) => {
     try {
       const period = req.query.period || "all-time";
       const limit = parseInt(req.query.limit) || 50;
-
       const leaderboard = pointsService.getLeaderboard(
         client.db,
         GUILD_ID,
@@ -248,9 +236,8 @@ function startServer(client) {
     }
   });
 
-  // --- ADMIN ACTION: DELETE SUBMISSION ---
+  // --- ADMIN ACTION: DELETE ---
   app.delete("/api/submissions/:id", (req, res) => {
-    // 1. Security Check: Must have a session, must be logged in, must be admin
     if (!req.session || !req.session.user || !req.session.user.isAdmin) {
       return res.status(403).json({ error: "Unauthorized: Admins only." });
     }
@@ -262,7 +249,6 @@ function startServer(client) {
         submissionId
       );
       if (success) {
-        // Optional: Log this action or notify Discord channel
         console.log(
           `[Audit] Admin ${req.session.user.username} deleted submission ${submissionId}`
         );
@@ -275,6 +261,105 @@ function startServer(client) {
       res.status(500).json({ error: "Database error" });
     }
   });
+
+  // --- USER ACTION: SUBMIT (NEW) ---
+  // Gemini: Handles multipart/form-data upload, sends to Discord, records in DB
+  app.post(
+    "/api/challenges/:id/submit",
+    upload.single("file"),
+    async (req, res) => {
+      // 1. Auth Check
+      if (!req.session || !req.session.user) {
+        return res.status(401).json({ error: "Must be logged in to submit." });
+      }
+
+      const challengeId = req.params.id;
+      const user = req.session.user;
+      const caption = req.body.caption || "";
+      const link = req.body.link || ""; // Gemini: Extract Link
+      const file = req.file;
+
+      try {
+        // 2. Get Challenge Info
+        const challenge = challengesService.getChallengeById(
+          client.db,
+          challengeId
+        );
+        if (!challenge) {
+          return res.status(404).json({ error: "Challenge not found" });
+        }
+        if (!challenge.channel_id) {
+          return res.status(400).json({ error: "Challenge has no channel." });
+        }
+
+        // 3. Post to Discord Thread/Channel
+        const channel = await client.channels.fetch(challenge.channel_id);
+        const threadId = challenge.thread_id || challenge.message_id; // Prefer thread if exists
+
+        let targetChannel = channel;
+        if (threadId) {
+          try {
+            targetChannel = await channel.threads.fetch(threadId);
+          } catch (e) {
+            console.warn("Could not fetch thread, falling back to channel.");
+          }
+        }
+
+        // Prepare the payload for Discord
+        // Gemini: Format message to include caption AND link
+        const messageContent = [
+          `**Submission by ${user.username}**`,
+          caption,
+          link ? `\n🔗 ${link}` : "",
+        ]
+          .join("\n")
+          .trim();
+
+        const messagePayload = {
+          content: messageContent,
+          files: [],
+        };
+
+        if (file) {
+          messagePayload.files.push({
+            attachment: file.path,
+            name: file.originalname,
+          });
+        }
+
+        const discordMessage = await targetChannel.send(messagePayload);
+
+        // 4. Record in Database
+        let attachmentUrl = null;
+        if (discordMessage.attachments.size > 0) {
+          attachmentUrl = discordMessage.attachments.first().url;
+        }
+
+        const submissionId = challengesService.recordSubmission(client.db, {
+          challenge_id: challengeId,
+          guild_id: GUILD_ID,
+          user_id: user.id,
+          username: user.username,
+          channel_id: discordMessage.channelId,
+          message_id: discordMessage.id,
+          thread_id: discordMessage.channelId,
+          content_text: caption,
+          attachment_url: attachmentUrl,
+          link_url: link || null, // Gemini: Save the link
+        });
+
+        // 5. Cleanup
+        if (file) {
+          fs.unlinkSync(file.path);
+        }
+
+        res.json({ success: true, submissionId });
+      } catch (error) {
+        console.error("Submission Error:", error);
+        res.status(500).json({ error: "Failed to process submission." });
+      }
+    }
+  );
 
   // --- Start Listening ---
   app.listen(PORT, () => {
