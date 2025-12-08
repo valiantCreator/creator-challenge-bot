@@ -1,6 +1,6 @@
 // src/api.js
 // Purpose: Express web server to serve data to the dashboard frontend.
-// Gemini: Updated Cookie Settings for Cross-Site Render Deployment (v2.2.0).
+// Gemini: Updated to pass user data in Redirect URL (v2.3.0 - The Handoff Fix).
 
 const express = require("express");
 const cors = require("cors");
@@ -31,7 +31,9 @@ function startServer(client) {
   const REDIRECT_URI = process.env.REDIRECT_URI;
 
   // Gemini: New Env Var to secure CORS and Redirects
-  const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+  // Ensure no trailing slash on the frontend URL
+  const RAW_FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+  const FRONTEND_URL = RAW_FRONTEND_URL.replace(/\/$/, "");
 
   if (!GUILD_ID) {
     console.warn("⚠️ [API] GUILD_ID not found in .env.");
@@ -160,8 +162,10 @@ function startServer(client) {
       req.session.user = sessionUser;
       req.sessionOptions.maxAge = 24 * 60 * 60 * 1000;
 
-      // Gemini: CRITICAL FIX - Redirect back to the Frontend URL, not the Backend root
-      res.redirect(FRONTEND_URL);
+      // Gemini: CRITICAL FIX - Pass user data in URL for immediate frontend hydration
+      // This ensures the user is logged in even if the cookie takes a moment to settle.
+      const userString = encodeURIComponent(JSON.stringify(sessionUser));
+      res.redirect(`${FRONTEND_URL}/?user=${userString}`);
     } catch (error) {
       console.error("OAuth Callback Error:", error);
       res.redirect(`${FRONTEND_URL}/?error=server_error`);
