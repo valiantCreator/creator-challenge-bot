@@ -1,5 +1,6 @@
 // src/commands/edit-submission.js
 // Purpose: Slash command for users to edit their own submissions.
+// Gemini: Updated to use Async/Await and fixed parameter casing for Postgres service.
 
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const challengesService = require("../services/challenges");
@@ -56,7 +57,8 @@ module.exports = {
       }
 
       // 1. Fetch the original submission from the database.
-      const originalSubmission = challengesService.getSubmissionById(
+      // Gemini: Added await
+      const originalSubmission = await challengesService.getSubmissionById(
         db,
         submissionId
       );
@@ -85,12 +87,15 @@ module.exports = {
       }
 
       // 3. Update the database record.
+      // Gemini: Updated keys to camelCase to match src/services/challenges.js updateSubmission logic
       const updatedData = {
-        content_text: newText ?? originalSubmission.content_text,
-        attachment_url: newAttachment?.url ?? originalSubmission.attachment_url,
-        link_url: newLink ?? originalSubmission.link_url,
+        contentText: newText ?? originalSubmission.content_text,
+        attachmentUrl: newAttachment?.url ?? originalSubmission.attachment_url,
+        linkUrl: newLink ?? originalSubmission.link_url,
       };
-      challengesService.updateSubmission(db, submissionId, updatedData);
+
+      // Gemini: Added await
+      await challengesService.updateSubmission(db, submissionId, updatedData);
 
       // 4. Fetch the original Discord message to edit it.
       const channel = await interaction.client.channels.fetch(
@@ -120,23 +125,23 @@ module.exports = {
       // Clear existing fields that will be replaced
       editedEmbed.setFields([]);
 
-      if (updatedData.content_text)
+      if (updatedData.contentText)
         editedEmbed.addFields({
           name: "📝 Notes",
-          value: updatedData.content_text,
+          value: updatedData.contentText,
         });
-      if (updatedData.link_url)
-        editedEmbed.addFields({ name: "🔗 Link", value: updatedData.link_url });
+      if (updatedData.linkUrl)
+        editedEmbed.addFields({ name: "🔗 Link", value: updatedData.linkUrl });
 
       editedEmbed.setImage(null); // Clear the old image before setting a new one
-      if (updatedData.attachment_url) {
+      if (updatedData.attachmentUrl) {
         if (newAttachment?.contentType?.startsWith("image/")) {
-          editedEmbed.setImage(updatedData.attachment_url);
+          editedEmbed.setImage(updatedData.attachmentUrl);
         } else {
           editedEmbed.addFields({
             name: "📎 Attachment",
             value: `[${newAttachment?.name ?? "View Attachment"}](${
-              updatedData.attachment_url
+              updatedData.attachmentUrl
             })`,
           });
         }

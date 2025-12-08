@@ -1,5 +1,6 @@
 // src/commands/removeBadgeRole.js
 // Purpose: Command to delete a configured badge role milestone.
+// Gemini: Updated to use Async/Await for PostgreSQL migration.
 
 const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 const challengesService = require("../services/challenges");
@@ -28,7 +29,8 @@ module.exports = {
 
     try {
       // (FIX) Pass the database connection to the service.
-      const success = challengesService.removeBadgeRole(db, badgeId);
+      // Gemini: Added await
+      const success = await challengesService.removeBadgeRole(db, badgeId);
 
       if (!success) {
         const errorEmbed = createErrorEmbed(

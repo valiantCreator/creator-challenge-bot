@@ -1,3 +1,7 @@
+// src/commands/delete-submission.js
+// Purpose: Deletes a submission by its ID. (Admin only)
+// Gemini: Updated to use Async/Await for PostgreSQL migration.
+
 const { SlashCommandBuilder, PermissionsBitField } = require("discord.js");
 const challengesService = require("../services/challenges");
 const pointsService = require("../services/points");
@@ -24,7 +28,11 @@ module.exports = {
 
     try {
       // (FIX) Pass the database connection to the service.
-      const submission = challengesService.getSubmissionById(db, submissionId);
+      // Gemini: Added await
+      const submission = await challengesService.getSubmissionById(
+        db,
+        submissionId
+      );
 
       if (!submission || submission.guild_id !== guildId) {
         const errorEmbed = createErrorEmbed(
@@ -55,7 +63,11 @@ module.exports = {
       }
 
       // (FIX) Pass the database connection to the service.
-      const deleted = challengesService.deleteSubmission(db, submissionId);
+      // Gemini: Added await
+      const deleted = await challengesService.deleteSubmission(
+        db,
+        submissionId
+      );
       if (!deleted) {
         throw new Error(
           `Failed to delete submission ${submissionId} from the database.`
@@ -63,7 +75,12 @@ module.exports = {
       }
 
       // (FIX) Pass the database connection to the service.
-      pointsService.recalculateUserPoints(db, submission.user_id, guildId);
+      // Gemini: Added await
+      await pointsService.recalculateUserPoints(
+        db,
+        submission.user_id,
+        guildId
+      );
 
       const successEmbed = createSuccessEmbed(
         "Submission Deleted",

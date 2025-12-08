@@ -1,5 +1,6 @@
-// src/commands/addBadgeRole.js
+// src/commands/add-badge-role.js
 // Purpose: Command to create a new badge role milestone.
+// Gemini: Updated to use Async/Await for PostgreSQL migration.
 
 const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 const challengesService = require("../services/challenges");
@@ -55,7 +56,8 @@ module.exports = {
       }
 
       // (FIX) Pass the database connection to the service.
-      const result = challengesService.addBadgeRole(db, {
+      // Gemini: Added await
+      const result = await challengesService.addBadgeRole(db, {
         guildId: guild.id,
         roleId: role.id,
         pointsRequired: points,

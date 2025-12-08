@@ -1,5 +1,6 @@
 // src/commands/pick-winner.js
 // Purpose: Admin command to select a winner for a challenge and award bonus points.
+// Gemini: Updated to use Async/Await for PostgreSQL migration.
 
 const {
   SlashCommandBuilder,
@@ -58,7 +59,12 @@ module.exports = {
       const announcementText = interaction.options.getString("announcement");
 
       // --- Validation ---
-      const challenge = challengesService.getChallengeById(db, challengeId);
+      // Gemini: Added await
+      const challenge = await challengesService.getChallengeById(
+        db,
+        challengeId
+      );
+
       if (!challenge || challenge.guild_id !== interaction.guildId) {
         return interaction.editReply({
           embeds: [
@@ -81,7 +87,7 @@ module.exports = {
       }
 
       // --- Action 1: Award Points ---
-      // --- UPDATED: Added 'WINNER_BONUS' reason to the addPoints call ---
+      // This was already async in previous versions, but good to confirm
       await pointsService.addPoints(
         db,
         interaction.guildId,
@@ -91,7 +97,7 @@ module.exports = {
         interaction.client
       );
 
-      // --- Action 2: Announce Winner in Thread (Detailed Announcement) ---
+      // --- Action 2: Announce Winner in Thread ---
       const winnerEmbed = new EmbedBuilder()
         .setColor("#FFD700") // Gold
         .setTitle(`🏆 Winner Announced for Challenge #${challengeId}!`)
@@ -114,7 +120,7 @@ module.exports = {
             inline: true,
           }
         )
-        .setThumbnail("https://i.imgur.com/343C1p4.png") // A simple trophy icon
+        .setThumbnail("https://i.imgur.com/343C1p4.png")
         .setTimestamp();
 
       if (announcementText) {
@@ -138,7 +144,7 @@ module.exports = {
         );
       }
 
-      // --- (NEW) Action 3: Update Original Challenge Post (Public Announcement) ---
+      // --- Action 3: Update Original Challenge Post ---
       try {
         const parentChannel = await interaction.client.channels
           .fetch(challenge.channel_id)
@@ -151,7 +157,7 @@ module.exports = {
             const originalEmbed = originalMessage.embeds[0];
             const updatedEmbed = new EmbedBuilder(originalEmbed.data)
               .addFields({ name: "🏆 Winner", value: `<@${winner.id}>` })
-              .setColor("#FFD700"); // Change color to gold to show it's completed
+              .setColor("#FFD700");
 
             await originalMessage.edit({ embeds: [updatedEmbed] });
           }
@@ -165,7 +171,9 @@ module.exports = {
       }
 
       // --- Action 4: Close Challenge and Archive Thread ---
-      challengesService.closeChallenge(db, challengeId);
+      // Gemini: Added await
+      await challengesService.closeChallenge(db, challengeId);
+
       if (thread) {
         await thread
           .setArchived(true, `Challenge #${challengeId} winner selected.`)

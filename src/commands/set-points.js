@@ -1,5 +1,6 @@
 // src/commands/set-points.js
 // Purpose: Allows admins to configure point values for the server.
+// Gemini: Updated to use Async/Await for PostgreSQL migration.
 
 const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 const settingsService = require("../services/settings");
@@ -28,7 +29,7 @@ module.exports = {
 
   async execute(interaction) {
     await interaction.deferReply({ ephemeral: true });
-    // (FIX) Get the database connection from the client.
+    //Get the database connection from the client.
     const db = interaction.client.db;
 
     try {
@@ -38,8 +39,11 @@ module.exports = {
       const guildId = interaction.guild.id;
 
       if (submissionPoints === null && votePoints === null) {
-        // (FIX) Pass the database connection to the service.
-        const currentSettings = settingsService.getGuildSettings(db, guildId);
+        // Gemini: Added await
+        const currentSettings = await settingsService.getGuildSettings(
+          db,
+          guildId
+        );
         const errorEmbed = createErrorEmbed(
           "No Values Provided",
           `You must provide a value for at least one option.\n\n**Current Settings:**\n- Submissions: **${currentSettings.points_per_submission}** points\n- Votes: **${currentSettings.points_per_vote}** points`
@@ -55,11 +59,14 @@ module.exports = {
         newSettings.points_per_vote = votePoints;
       }
 
-      // (FIX) Pass the database connection to the service.
-      settingsService.updateGuildSettings(db, guildId, newSettings);
+      // Gemini: Added await
+      await settingsService.updateGuildSettings(db, guildId, newSettings);
 
-      // (FIX) Pass the database connection to the service.
-      const updatedSettings = settingsService.getGuildSettings(db, guildId);
+      // Gemini: Added await
+      const updatedSettings = await settingsService.getGuildSettings(
+        db,
+        guildId
+      );
 
       const successEmbed = createSuccessEmbed(
         "Point Values Updated",

@@ -1,5 +1,6 @@
 // src/commands/leaderboard.js
 // Purpose: Slash command handler for displaying the points leaderboard.
+// Gemini: Updated to use Async/Await for PostgreSQL migration.
 
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const { getLeaderboard } = require("../services/points");
@@ -10,8 +11,6 @@ module.exports = {
     .setName("leaderboard")
     .setDescription("Show the top participants by points")
     .setDMPermission(false)
-    // --- NEW: Added optional 'period' choice ---
-    // This creates a dropdown menu for the user to select a time frame.
     .addStringOption((option) =>
       option
         .setName("period")
@@ -29,12 +28,10 @@ module.exports = {
     const db = interaction.client.db;
 
     try {
-      // --- NEW: Read the 'period' option from the interaction ---
-      // Defaults to 'all-time' if the user doesn't select an option.
       const period = interaction.options.getString("period") ?? "all-time";
 
-      // --- NEW: Pass the period to the service function ---
-      const leaderboardRows = getLeaderboard(
+      // Gemini: Added await
+      const leaderboardRows = await getLeaderboard(
         db,
         interaction.guildId,
         10,
@@ -64,7 +61,6 @@ module.exports = {
           }** points`
       );
 
-      // --- NEW: Create a dynamic title based on the selected period ---
       const titleMap = {
         weekly: "📅 Weekly Leaderboard",
         monthly: "🗓️ Monthly Leaderboard",

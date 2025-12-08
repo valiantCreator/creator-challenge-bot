@@ -1,23 +1,23 @@
 // src/services/points.js
 // Purpose: Encapsulates points logic, leaderboard queries, and badge awards.
+// Gemini: Refactored for PostgreSQL (Async/Await, Date handling).
 
 /**
  * Gets a user's current point total.
- * @param {import('better-sqlite3').Database} db The database connection.
+ * @param {object} db The database wrapper.
  * @param {string} guildId The guild ID.
  * @param {string} userId The user ID.
- * @returns {object} An object like { points: number } or { points: 0 } if no record exists.
+ * @returns {Promise<object>} An object like { points: number } or { points: 0 }.
  */
-function getUserPoints(db, guildId, userId) {
-  const stmt = db.prepare(
-    "SELECT points FROM points WHERE guild_id = ? AND user_id = ?"
-  );
-  return stmt.get(guildId, userId) || { points: 0 };
+async function getUserPoints(db, guildId, userId) {
+  const sql = "SELECT points FROM points WHERE guild_id = $1 AND user_id = $2";
+  const result = await db.get(sql, [guildId, userId]);
+  return result || { points: 0 };
 }
 
 /**
  * Checks a user's points against badge roles and awards them if necessary.
- * @param {import('better-sqlite3').Database} db The database connection.
+ * @param {object} db The database wrapper.
  * @param {string} guildId
  * @param {string} userId
  * @param {number} newTotalPoints
@@ -30,8 +30,6 @@ async function checkAndAwardBadges(
   newTotalPoints,
   client
 ) {
-  // --- NEW: Guard clause for test environments ---
-  // If no client is provided (e.g., in a unit test), exit immediately.
   if (!client) return;
 
   try {
@@ -39,7 +37,8 @@ async function checkAndAwardBadges(
     const member = await guild.members.fetch(userId);
     if (!member) return;
 
-    const badgeRoles = require("./challenges").getBadgeRoles(db, guildId);
+    // Gemini: Must await this now as it's an async DB call
+    const badgeRoles = await require("./challenges").getBadgeRoles(db, guildId);
     if (badgeRoles.length === 0) return;
 
     const memberRoleIds = new Set(member.roles.cache.map((r) => r.id));
@@ -62,50 +61,46 @@ async function checkAndAwardBadges(
 
 /**
  * Adds points, logs the transaction, and triggers a check for badge roles.
- * @param {import('better-sqlite3').Database} db The database connection.
+ * @param {object} db The database wrapper.
  * @param {string} guildId
  * @param {string} userId
  * @param {number} amount
- * @param {string} reason The reason for the point change (e.g., 'SUBMISSION', 'ADMIN_ADD').
+ * @param {string} reason The reason for the point change.
  * @param {import('discord.js').Client} client The Discord client instance.
  */
 async function addPoints(db, guildId, userId, amount, reason, client) {
-  // --- REFACTORED FOR V0.6 ---
-  // This function now uses a transaction to ensure data integrity. Both the log
-  // and the point total must be updated together, or not at all.
-  const transaction = db.transaction((data) => {
-    // Step 1: Insert a record into the point_logs ledger.
-    const logStmt = db.prepare(
-      `INSERT INTO point_logs (guild_id, user_id, points_awarded, reason) VALUES (?, ?, ?, ?)`
-    );
-    logStmt.run(data.guildId, data.userId, data.amount, data.reason);
+  // 1. Insert into Ledger
+  const logSql = `
+    INSERT INTO point_logs (guild_id, user_id, points_awarded, reason) 
+    VALUES ($1, $2, $3, $4)
+  `;
+  await db.run(logSql, [guildId, userId, amount, reason]);
 
-    // Step 2: Update the user's total score in the points cache table.
-    const upsertStmt = db.prepare(`
-      INSERT INTO points (guild_id, user_id, points)
-      VALUES (?, ?, ?)
-      ON CONFLICT(guild_id, user_id) DO UPDATE SET points = points + excluded.points
-    `);
-    upsertStmt.run(data.guildId, data.userId, data.amount);
-  });
+  // 2. Upsert into Cache
+  // Gemini: Postgres specific ON CONFLICT syntax
+  const upsertSql = `
+    INSERT INTO points (guild_id, user_id, points)
+    VALUES ($1, $2, $3)
+    ON CONFLICT(guild_id, user_id) 
+    DO UPDATE SET points = points.points + EXCLUDED.points
+  `;
+  await db.run(upsertSql, [guildId, userId, amount]);
 
-  // Execute the transaction with the provided data.
-  transaction({ guildId, userId, amount, reason });
-
-  // After the transaction is successful, check for badges.
-  const { points } = getUserPoints(db, guildId, userId);
-  await checkAndAwardBadges(db, guildId, userId, points, client);
+  // 3. Check Badges
+  const userRecord = await getUserPoints(db, guildId, userId);
+  await checkAndAwardBadges(db, guildId, userId, userRecord.points, client);
 }
 
 /**
  * Recalculates points using guild settings for accuracy.
- * @param {import('better-sqlite3').Database} db The database connection.
+ * @param {object} db The database wrapper.
  * @param {string} userId
  * @param {string} guildId
  */
-function recalculateUserPoints(db, userId, guildId) {
-  const settings = require("./settings").getGuildSettings(db, guildId);
-  const submissions = require("./challenges").getSubmissionsByUser(
+async function recalculateUserPoints(db, userId, guildId) {
+  // Gemini: Await these service calls
+  const settings = await require("./settings").getGuildSettings(db, guildId);
+  const submissions = await require("./challenges").getSubmissionsByUser(
     db,
     userId,
     guildId
@@ -118,81 +113,75 @@ function recalculateUserPoints(db, userId, guildId) {
   );
   const newTotalPoints = submissionPoints + votePoints;
 
-  const stmt = db.prepare(`
+  const sql = `
     INSERT INTO points (guild_id, user_id, points)
-    VALUES (?, ?, ?)
-    ON CONFLICT(guild_id, user_id) DO UPDATE SET points = excluded.points
-  `);
-  stmt.run(guildId, userId, newTotalPoints);
+    VALUES ($1, $2, $3)
+    ON CONFLICT(guild_id, user_id) 
+    DO UPDATE SET points = EXCLUDED.points
+  `;
+  await db.run(sql, [guildId, userId, newTotalPoints]);
 }
 
 /**
  * Retrieves the leaderboard for a guild, with optional time-based filtering.
- * @param {import('better-sqlite3').Database} db The database connection.
+ * @param {object} db The database wrapper.
  * @param {string} guildId The ID of the guild.
  * @param {number} [limit=10] The number of users to return.
- * @param {('all-time'|'monthly'|'weekly')} [period='all-time'] The time period for the leaderboard.
- * @returns {Array<object>} A list of user point objects.
+ * @param {('all-time'|'monthly'|'weekly')} [period='all-time'] The time period.
+ * @returns {Promise<Array<object>>} A list of user point objects.
  */
-function getLeaderboard(db, guildId, limit = 10, period = "all-time") {
-  // --- REFACTORED FOR V0.6 ---
-  // Handles both all-time and time-filtered leaderboards.
-
+async function getLeaderboard(db, guildId, limit = 10, period = "all-time") {
   if (period === "all-time") {
-    // For all-time, we use the fast, cached 'points' table.
-    const stmt = db.prepare(`
-      SELECT user_id, points FROM points WHERE guild_id = ? ORDER BY points DESC LIMIT ?
-    `);
-    return stmt.all(guildId, limit);
+    const sql = `SELECT user_id, points FROM points WHERE guild_id = $1 ORDER BY points DESC LIMIT $2`;
+    return await db.all(sql, [guildId, limit]);
   }
 
-  // For weekly or monthly, we calculate the start time and query the logs.
+  // Calculate Date for Postgres
   let days;
   if (period === "weekly") {
     days = 7;
   } else if (period === "monthly") {
     days = 30;
   } else {
-    // Fallback to all-time for any invalid period string.
     return getLeaderboard(db, guildId, limit, "all-time");
   }
 
-  // Calculate the UNIX timestamp for the start of the period.
-  const since = Math.floor(Date.now() / 1000) - days * 24 * 60 * 60;
+  // Gemini: Create a Javascript Date object for the comparison
+  const sinceDate = new Date();
+  sinceDate.setDate(sinceDate.getDate() - days);
 
-  // This query sums all points from the logs within the time period for each user.
-  const stmt = db.prepare(`
+  const sql = `
     SELECT
       user_id,
       SUM(points_awarded) as points
     FROM
       point_logs
     WHERE
-      guild_id = ? AND created_at >= ?
+      guild_id = $1 AND created_at >= $2
     GROUP BY
       user_id
     HAVING
-        points > 0
+      SUM(points_awarded) > 0
     ORDER BY
       points DESC
-    LIMIT ?
-  `);
-  return stmt.all(guildId, since, limit);
+    LIMIT $3
+  `;
+
+  // Note: 'points' alias in ORDER BY works in Postgres, but standard SQL usually requires the aggregate in ORDER BY.
+  // Postgres allows alias usage in ORDER BY.
+  return await db.all(sql, [guildId, sinceDate, limit]);
 }
 
 /**
- * (NEW) Calculates a user's rank on the leaderboard.
- * @param {import('better-sqlite3').Database} db The database connection.
+ * Calculates a user's rank on the leaderboard.
+ * @param {object} db The database wrapper.
  * @param {string} guildId The ID of the guild.
  * @param {string} userId The ID of the user.
- * @returns {{rank: number, total: number} | null} The user's rank and total participants, or null if not ranked.
+ * @returns {Promise<{rank: number, total: number} | null>} The rank/total or null.
  */
-function getUserRank(db, guildId, userId) {
-  const rankedUsers = db
-    .prepare(
-      `SELECT user_id FROM points WHERE guild_id = ? ORDER BY points DESC`
-    )
-    .all(guildId);
+async function getUserRank(db, guildId, userId) {
+  const sql = `SELECT user_id FROM points WHERE guild_id = $1 ORDER BY points DESC`;
+  const rankedUsers = await db.all(sql, [guildId]);
 
   if (rankedUsers.length === 0) {
     return null;
@@ -201,7 +190,6 @@ function getUserRank(db, guildId, userId) {
   const rank = rankedUsers.findIndex((user) => user.user_id === userId) + 1;
 
   if (rank === 0) {
-    // findIndex returns -1 if not found, so rank would be 0
     return null;
   }
 
@@ -213,5 +201,5 @@ module.exports = {
   recalculateUserPoints,
   getLeaderboard,
   getUserPoints,
-  getUserRank, // Export the new function
+  getUserRank,
 };

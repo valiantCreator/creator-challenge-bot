@@ -1,5 +1,6 @@
 // src/commands/listBadgeRoles.js
 // Purpose: Command to display all configured badge roles for the server.
+// Gemini: Updated to use Async/Await for PostgreSQL migration.
 
 const {
   SlashCommandBuilder,
@@ -23,7 +24,8 @@ module.exports = {
 
     try {
       // (FIX) Pass the database connection to the service.
-      const badgeRoles = challengesService.getBadgeRoles(
+      // Gemini: Added await
+      const badgeRoles = await challengesService.getBadgeRoles(
         db,
         interaction.guildId
       );

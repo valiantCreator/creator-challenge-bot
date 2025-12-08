@@ -1,5 +1,6 @@
 // src/services/scheduler.js
 // Purpose: Manages all scheduled tasks (cron jobs) for the bot.
+// Gemini: Refactored for PostgreSQL (Async/Await).
 
 const cron = require("node-cron");
 const { EmbedBuilder } = require("discord.js");
@@ -12,8 +13,8 @@ async function runScheduledChallenge(db, challengeTemplate, client) {
     `[Scheduler] Running job for template #${challengeTemplate.id}: "${challengeTemplate.title}"`
   );
   try {
-    // (FIX) Pass db to the service function.
-    const newChallengeData = await challengesService.createChallenge(db, {
+    // Gemini: createChallenge now returns JUST the ID (number), not the full object
+    const newChallengeId = await challengesService.createChallenge(db, {
       guildId: challengeTemplate.guild_id,
       title: challengeTemplate.title,
       description: challengeTemplate.description,
@@ -36,18 +37,18 @@ async function runScheduledChallenge(db, challengeTemplate, client) {
       return;
     }
 
-    // (FIX) Create thread after posting the message
+    // Gemini: Use template data for title/desc, and the NEW ID for the footer
     const challengeEmbed = new EmbedBuilder()
-      .setTitle(`🏁 New Challenge: ${newChallengeData.title}`)
-      .setDescription(newChallengeData.description)
+      .setTitle(`🏁 New Challenge: ${challengeTemplate.title}`)
+      .setDescription(challengeTemplate.description)
       .setColor("#5865F2")
       .addFields(
         {
           name: "Challenge ID",
-          value: `\`${newChallengeData.id}\``,
+          value: `\`${newChallengeId}\``, // Use the new ID
           inline: true,
         },
-        { name: "Type", value: newChallengeData.type, inline: true }
+        { name: "Type", value: challengeTemplate.type, inline: true }
       )
       .setFooter({ text: "Use the /submit command in this thread!" });
 
@@ -56,20 +57,20 @@ async function runScheduledChallenge(db, challengeTemplate, client) {
     });
 
     const thread = await challengeMessage.startThread({
-      name: `Challenge #${newChallengeData.id} - ${newChallengeData.title}`,
+      name: `Challenge #${newChallengeId} - ${challengeTemplate.title}`,
       autoArchiveDuration: 10080, // 1 week
-      reason: `Submissions and discussion for challenge #${newChallengeData.id}`,
+      reason: `Submissions and discussion for challenge #${newChallengeId}`,
     });
 
-    // (FIX) Pass db to the service function.
-    challengesService.attachMessageAndThread(db, {
-      challengeId: newChallengeData.id,
+    // Gemini: Await this async call
+    await challengesService.attachMessageAndThread(db, {
+      challengeId: newChallengeId,
       messageId: challengeMessage.id,
       threadId: thread.id,
     });
 
     console.log(
-      `[Scheduler] Successfully created new challenge #${newChallengeData.id}`
+      `[Scheduler] Successfully created new challenge #${newChallengeId}`
     );
   } catch (error) {
     console.error(
@@ -104,11 +105,12 @@ function cancelChallenge(challengeId) {
   }
 }
 
-// (FIX) Accept db and client as arguments.
-function initializeScheduler(db, client) {
+// Gemini: Made async to await database call
+async function initializeScheduler(db, client) {
   console.log("[Scheduler] Initializing...");
-  // (FIX) Pass db to the service function.
-  const templates = challengesService.getAllRecurringChallenges(db);
+
+  // Gemini: Await the database fetch
+  const templates = await challengesService.getAllRecurringChallenges(db);
 
   if (templates.length === 0) {
     console.log("[Scheduler] No recurring challenges found.");

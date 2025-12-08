@@ -1,5 +1,6 @@
 // src/events/messageReactionRemove.js
 // Purpose: Event handler for when a user REMOVES a reaction from a message.
+// Gemini: Updated to use Async/Await for PostgreSQL migration.
 
 const { Events } = require("discord.js");
 const challengesService = require("../services/challenges");
@@ -22,16 +23,18 @@ module.exports = {
     }
 
     const db = reaction.client.db;
-    const settings = settingsService.getGuildSettings(
-      db,
-      reaction.message.guildId
-    );
-
-    // --- UPDATED: Check against the dynamic vote_emoji ---
-    if (reaction.emoji.name !== settings.vote_emoji) return;
-
     try {
-      const submission = challengesService.getSubmissionByMessageId(
+      // Gemini: Added await
+      const settings = await settingsService.getGuildSettings(
+        db,
+        reaction.message.guildId
+      );
+
+      // --- UPDATED: Check against the dynamic vote_emoji ---
+      if (reaction.emoji.name !== settings.vote_emoji) return;
+
+      // Gemini: Added await
+      const submission = await challengesService.getSubmissionByMessageId(
         db,
         reaction.message.id
       );
@@ -48,7 +51,8 @@ module.exports = {
         reaction.client
       );
 
-      challengesService.incrementSubmissionVotes(db, submission.id, -1);
+      // Gemini: Added await
+      await challengesService.incrementSubmissionVotes(db, submission.id, -1);
       console.log(
         `[Vote Removed] User ${user.username} removed vote from submission ${submission.id}.`
       );

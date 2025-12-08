@@ -1,5 +1,6 @@
 // src/commands/profile.js
 // Purpose: Slash command to display a user's challenge profile.
+// Gemini: Updated to use Async/Await for PostgreSQL migration.
 
 const {
   SlashCommandBuilder,
@@ -50,9 +51,14 @@ module.exports = {
       const userId = targetUser.id;
 
       // --- Fetch Data from Services ---
-      const { points } = pointsService.getUserPoints(db, guildId, userId);
-      const rankInfo = pointsService.getUserRank(db, guildId, userId);
-      const recentSubmissions = challengesService.getSubmissionsByUserId(
+      // Gemini: Added await
+      const { points } = await pointsService.getUserPoints(db, guildId, userId);
+
+      // Gemini: Added await
+      const rankInfo = await pointsService.getUserRank(db, guildId, userId);
+
+      // Gemini: Added await
+      const recentSubmissions = await challengesService.getSubmissionsByUserId(
         db,
         guildId,
         userId,

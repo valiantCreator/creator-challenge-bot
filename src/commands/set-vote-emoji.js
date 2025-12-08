@@ -1,5 +1,6 @@
 // src/commands/set-vote-emoji.js
 // Purpose: Admin command to set a custom emoji for voting.
+// Gemini: Updated to use Async/Await for PostgreSQL migration.
 
 const {
   SlashCommandBuilder,
@@ -56,7 +57,8 @@ module.exports = {
 
     // --- Action: Save to Database ---
     try {
-      setVoteEmoji(db, interaction.guildId, emojiString);
+      // Gemini: Added await
+      await setVoteEmoji(db, interaction.guildId, emojiString);
 
       const successEmbed = createSuccessEmbed(
         "Vote Emoji Updated",

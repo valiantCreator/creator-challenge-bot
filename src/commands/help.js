@@ -1,5 +1,6 @@
 // src/commands/help.js
 // Purpose: A dynamic help command that lists available commands based on user permissions.
+// Gemini: Verified - No database calls required (v2.0.0).
 
 const {
   SlashCommandBuilder,
@@ -26,8 +27,7 @@ module.exports = {
     commands.forEach((command) => {
       const commandIsAdmin = command.data.default_member_permissions;
 
-      // --- UPDATED: Changed the format to use code blocks instead of clickable links ---
-      // This is more reliable as it doesn't depend on fetching the command's ID.
+      // Use code blocks for cleaner formatting
       const commandInfo = `\`/${command.data.name}\`\n*${command.data.description}*`;
 
       if (commandIsAdmin) {

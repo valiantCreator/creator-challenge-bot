@@ -1,5 +1,6 @@
 // src/commands/create-challenge.js
 // Purpose: Slash command handler for creating a new challenge.
+// Gemini: Updated to use Async/Await for PostgreSQL migration.
 
 const {
   SlashCommandBuilder,
@@ -81,8 +82,8 @@ module.exports = {
           });
         }
 
-        const newTemplateId = challengesService.createChallenge(db, {
-          // (FIX) Changed all keys to camelCase to match the service function.
+        // Gemini: Added await
+        const newTemplateId = await challengesService.createChallenge(db, {
           guildId: interaction.guildId,
           title,
           description,
@@ -93,7 +94,8 @@ module.exports = {
           cronSchedule: schedule,
         });
 
-        const newTemplate = challengesService.getChallengeById(
+        // Gemini: Added await
+        const newTemplate = await challengesService.getChallengeById(
           db,
           newTemplateId
         );
@@ -112,8 +114,8 @@ module.exports = {
       }
 
       // --- Logic Path 2: Create a ONE-TIME Challenge ---
-      const newChallengeId = challengesService.createChallenge(db, {
-        // (FIX) Changed all keys to camelCase to match the service function.
+      // Gemini: Added await
+      const newChallengeId = await challengesService.createChallenge(db, {
         guildId: interaction.guildId,
         title,
         description,
@@ -152,7 +154,8 @@ module.exports = {
         autoArchiveDuration: 1440,
       });
 
-      const updated = challengesService.attachMessageAndThread(db, {
+      // Gemini: Added await
+      const updated = await challengesService.attachMessageAndThread(db, {
         challengeId: newChallengeId,
         messageId: challengeMessage.id,
         threadId: thread.id,

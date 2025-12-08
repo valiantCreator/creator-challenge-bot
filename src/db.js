@@ -1,122 +1,177 @@
 // src/db.js
-// Purpose: Initializes and configures the better-sqlite3 database.
+// Purpose: Database connection and schema management for PostgreSQL (Supabase).
+// Gemini: Refactored with explicit .env path loading (v2.0.2).
 
 const path = require("path");
-const fs = require("fs");
-const Database = require("better-sqlite3");
+// Gemini: Explicitly point to the .env file in the root directory
+// This fixes the issue where dotenv can't find the file when run from inside src/
+require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
 
-const dataDir = path.join(__dirname, "..", "data");
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
+const { Pool } = require("pg");
+
+// Gemini: Debug logging to verify the variable is loaded
+// We print the TYPE of the variable, not the value, for security.
+console.log(
+  `[DB] Loading DATABASE_URL... Type: ${typeof process.env.DATABASE_URL}`
+);
+
+if (!process.env.DATABASE_URL) {
+  console.error("❌ FATAL ERROR: DATABASE_URL is missing from .env file.");
+  console.error(
+    "   Please ensure your .env file is in the project root and contains DATABASE_URL=..."
+  );
+  process.exit(1);
 }
 
-const dbPath = path.join(dataDir, "bot.sqlite");
-const db = new Database(dbPath);
+// 1. Create the Connection Pool
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false, // Required for Supabase/Render connections
+  },
+});
 
-try {
-  db.exec("PRAGMA journal_mode = WAL;");
+// 2. Helper to query the database
+const db = {
+  // Generic query
+  query: (text, params) => pool.query(text, params),
 
-  db.exec(`CREATE TABLE IF NOT EXISTS challenges (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      guild_id TEXT NOT NULL,
-      title TEXT NOT NULL,
-      description TEXT,
-      type TEXT NOT NULL,
-      created_by TEXT,
-      starts_at INTEGER,
-      ends_at INTEGER,
-      channel_id TEXT,
-      message_id TEXT,
-      thread_id TEXT, 
-      is_active INTEGER NOT NULL DEFAULT 1,
-      is_template INTEGER NOT NULL DEFAULT 0,
-      cron_schedule TEXT
-  );`);
+  // Helper to get a single row
+  get: async (text, params) => {
+    const res = await pool.query(text, params);
+    return res.rows[0];
+  },
 
-  db.exec(`CREATE TABLE IF NOT EXISTS submissions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      challenge_id INTEGER NOT NULL,
-      guild_id TEXT NOT NULL,
-      user_id TEXT NOT NULL,
-      username TEXT NOT NULL,
-      channel_id TEXT NOT NULL,
-      message_id TEXT NOT NULL UNIQUE,
-      thread_id TEXT,
-      content_text TEXT,
-      attachment_url TEXT,
-      link_url TEXT,
-      created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-      votes INTEGER NOT NULL DEFAULT 0,
-      FOREIGN KEY(challenge_id) REFERENCES challenges(id) ON DELETE CASCADE
-  );`);
+  // Helper to get all rows
+  all: async (text, params) => {
+    const res = await pool.query(text, params);
+    return res.rows;
+  },
 
-  db.exec(`CREATE TABLE IF NOT EXISTS points (
-      guild_id TEXT NOT NULL,
-      user_id TEXT NOT NULL,
-      points INTEGER NOT NULL DEFAULT 0,
-      PRIMARY KEY(guild_id, user_id)
-  );`);
+  // Helper for inserts/updates
+  run: async (text, params) => {
+    const res = await pool.query(text, params);
+    return {
+      changes: res.rowCount,
+      lastInsertRowid: res.rows[0]?.id,
+    };
+  },
+};
 
-  db.exec(`CREATE TABLE IF NOT EXISTS guild_settings (
-        guild_id TEXT PRIMARY KEY,
-        points_per_submission INTEGER NOT NULL DEFAULT 1,
-        points_per_vote INTEGER NOT NULL DEFAULT 1,
-        vote_emoji TEXT NOT NULL DEFAULT '👍'
-  );`);
-
-  // --- NEW: Add vote_emoji column to guild_settings if it doesn't exist ---
-  // This is a simple migration to support upgrading existing databases.
+// 3. Initialize Schema
+async function init() {
+  // Gemini: Connect logic wrapped in try/catch to debug connection errors
+  let client;
   try {
-    db.prepare("SELECT vote_emoji FROM guild_settings LIMIT 1").get();
-  } catch (e) {
-    db.exec(
-      "ALTER TABLE guild_settings ADD COLUMN vote_emoji TEXT NOT NULL DEFAULT '👍'"
-    );
-    console.log("Database migrated: Added 'vote_emoji' to guild_settings.");
-  }
+    client = await pool.connect();
+    console.log("🔌 Connected to PostgreSQL successfully.");
 
-  db.exec(`CREATE TABLE IF NOT EXISTS badge_roles (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+    await client.query("BEGIN");
+
+    // Table: Challenges
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS challenges (
+        id SERIAL PRIMARY KEY,
+        guild_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        type TEXT NOT NULL,
+        created_by TEXT,
+        starts_at BIGINT,
+        ends_at BIGINT,
+        channel_id TEXT,
+        message_id TEXT,
+        thread_id TEXT,
+        is_active INTEGER DEFAULT 1,
+        is_template INTEGER DEFAULT 0,
+        cron_schedule TEXT
+      );
+    `);
+
+    // Table: Submissions
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS submissions (
+        id SERIAL PRIMARY KEY,
+        challenge_id INTEGER REFERENCES challenges(id) ON DELETE CASCADE,
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        username TEXT NOT NULL,
+        channel_id TEXT NOT NULL,
+        message_id TEXT NOT NULL UNIQUE,
+        thread_id TEXT,
+        content_text TEXT,
+        attachment_url TEXT,
+        link_url TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        votes INTEGER DEFAULT 0
+      );
+    `);
+
+    // Table: Points (Cache)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS points (
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        points INTEGER DEFAULT 0,
+        PRIMARY KEY (guild_id, user_id)
+      );
+    `);
+
+    // Table: Guild Settings
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS guild_settings (
+        guild_id TEXT PRIMARY KEY,
+        points_per_submission INTEGER DEFAULT 1,
+        points_per_vote INTEGER DEFAULT 1,
+        vote_emoji TEXT DEFAULT '👍'
+      );
+    `);
+
+    // Table: Badge Roles
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS badge_roles (
+        id SERIAL PRIMARY KEY,
         guild_id TEXT NOT NULL,
         role_id TEXT NOT NULL,
         points_required INTEGER NOT NULL,
         UNIQUE(guild_id, role_id)
-  );`);
+      );
+    `);
 
-  db.exec(`CREATE TABLE IF NOT EXISTS point_logs (
-        log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    // Table: Point Logs (Ledger)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS point_logs (
+        log_id SERIAL PRIMARY KEY,
         guild_id TEXT NOT NULL,
         user_id TEXT NOT NULL,
         points_awarded INTEGER NOT NULL,
         reason TEXT NOT NULL CHECK(reason IN ('SUBMISSION', 'VOTE_RECEIVED', 'WINNER_BONUS', 'ADMIN_ADD', 'ADMIN_REMOVE', 'SUBMISSION_DELETED')),
         related_id TEXT,
         operator_id TEXT,
-        created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
-  );`);
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
 
-  db.exec(
-    `CREATE INDEX IF NOT EXISTS idx_point_logs_guild_timestamp ON point_logs (guild_id, created_at DESC);`
-  );
-  db.exec(
-    `CREATE INDEX IF NOT EXISTS idx_point_logs_user ON point_logs (guild_id, user_id);`
-  );
+    // Indexes
+    await client.query(
+      `CREATE INDEX IF NOT EXISTS idx_point_logs_guild_timestamp ON point_logs (guild_id, created_at DESC);`
+    );
+    await client.query(
+      `CREATE INDEX IF NOT EXISTS idx_point_logs_user ON point_logs (guild_id, user_id);`
+    );
 
-  console.log("Database initialized successfully.");
-} catch (error) {
-  console.error("Database initialization failed:", error);
-  process.exit(1);
-}
-
-function closeDb() {
-  if (db && db.open) {
-    db.close();
+    await client.query("COMMIT");
+    console.log("✅ PostgreSQL Schema initialized.");
+  } catch (err) {
+    if (client) await client.query("ROLLBACK");
+    console.error("❌ Database initialization failed:", err);
+    process.exit(1);
+  } finally {
+    if (client) client.release();
   }
 }
 
-process.on("exit", closeDb);
-process.on("SIGINT", () => process.exit());
-process.on("SIGTERM", () => process.exit());
+// Auto-run init on first import
+init();
 
-module.exports = {
-  db,
-};
+module.exports = { db };

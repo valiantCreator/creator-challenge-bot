@@ -1,15 +1,16 @@
 // src/services/challenges.js
 // Purpose: Contains all database logic for challenges, submissions, and badges.
+// Gemini: Refactored for PostgreSQL (Async/Await, $1 placeholders, RETURNING id).
 
 // --- Challenge Functions ---
 
 /**
  * Creates a new challenge record in the database.
- * @param {import('better-sqlite3').Database} db The database connection.
+ * @param {object} db The database wrapper.
  * @param {object} challengeData The data for the new challenge.
- * @returns {number} The ID of the newly created challenge.
+ * @returns {Promise<number>} The ID of the newly created challenge.
  */
-function createChallenge(
+async function createChallenge(
   db,
   {
     guildId,
@@ -22,11 +23,14 @@ function createChallenge(
     cronSchedule = null,
   }
 ) {
-  const stmt = db.prepare(`
+  // Gemini: Added RETURNING id to get the new row ID immediately
+  const sql = `
     INSERT INTO challenges (guild_id, title, description, type, created_by, channel_id, is_active, is_template, cron_schedule)
-    VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
-  `);
-  const info = stmt.run(
+    VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8)
+    RETURNING id
+  `;
+
+  const info = await db.run(sql, [
     guildId,
     title,
     description || "",
@@ -34,70 +38,69 @@ function createChallenge(
     createdBy,
     channelId || null,
     isTemplate,
-    cronSchedule
-  );
+    cronSchedule,
+  ]);
+
   return info.lastInsertRowid;
 }
 
 /**
  * Updates a challenge record with its message and thread ID.
- * @param {import('better-sqlite3').Database} db The database connection.
+ * @param {object} db The database wrapper.
  * @param {object} data The IDs to attach.
- * @returns {boolean} True if the update was successful, false otherwise.
+ * @returns {Promise<boolean>} True if the update was successful, false otherwise.
  */
-function attachMessageAndThread(db, { challengeId, messageId, threadId }) {
-  const stmt = db.prepare(
-    "UPDATE challenges SET message_id = ?, thread_id = ? WHERE id = ?"
-  );
-  const info = stmt.run(messageId, threadId, challengeId);
+async function attachMessageAndThread(
+  db,
+  { challengeId, messageId, threadId }
+) {
+  const sql =
+    "UPDATE challenges SET message_id = $1, thread_id = $2 WHERE id = $3";
+  const info = await db.run(sql, [messageId, threadId, challengeId]);
   return info.changes > 0;
 }
 
 /**
  * Lists all active, non-template challenges for a guild.
- * @param {import('better-sqlite3').Database} db The database connection.
+ * @param {object} db The database wrapper.
  * @param {string} guildId The ID of the guild.
- * @returns {Array<object>} A list of challenge objects.
+ * @returns {Promise<Array<object>>} A list of challenge objects.
  */
-function listActiveChallenges(db, guildId) {
-  const stmt = db.prepare(
-    `SELECT * FROM challenges WHERE guild_id = ? AND is_active = 1 AND is_template = 0 ORDER BY id DESC`
-  );
-  return stmt.all(guildId);
+async function listActiveChallenges(db, guildId) {
+  const sql = `SELECT * FROM challenges WHERE guild_id = $1 AND is_active = 1 AND is_template = 0 ORDER BY id DESC`;
+  return await db.all(sql, [guildId]);
 }
 
 /**
  * Retrieves all active recurring challenge templates.
- * @param {import('better-sqlite3').Database} db The database connection.
- * @returns {Array<object>} A list of challenge template objects.
+ * @param {object} db The database wrapper.
+ * @returns {Promise<Array<object>>} A list of challenge template objects.
  */
-function getAllRecurringChallenges(db) {
-  const stmt = db.prepare(
-    `SELECT * FROM challenges WHERE is_template = 1 AND is_active = 1`
-  );
-  return stmt.all();
+async function getAllRecurringChallenges(db) {
+  const sql = `SELECT * FROM challenges WHERE is_template = 1 AND is_active = 1`;
+  return await db.all(sql);
 }
 
 /**
  * Gets a single challenge by its ID.
- * @param {import('better-sqlite3').Database} db The database connection.
+ * @param {object} db The database wrapper.
  * @param {number} challengeId The ID of the challenge.
- * @returns {object} The challenge object.
+ * @returns {Promise<object>} The challenge object.
  */
-function getChallengeById(db, challengeId) {
-  const stmt = db.prepare("SELECT * FROM challenges WHERE id = ?");
-  return stmt.get(challengeId);
+async function getChallengeById(db, challengeId) {
+  const sql = "SELECT * FROM challenges WHERE id = $1";
+  return await db.get(sql, [challengeId]);
 }
 
 /**
  * Marks a challenge as inactive.
- * @param {import('better-sqlite3').Database} db The database connection.
+ * @param {object} db The database wrapper.
  * @param {number} challengeId The ID of the challenge to close.
- * @returns {boolean} True if the update was successful.
+ * @returns {Promise<boolean>} True if the update was successful.
  */
-function closeChallenge(db, challengeId) {
-  const stmt = db.prepare("UPDATE challenges SET is_active = 0 WHERE id = ?");
-  const info = stmt.run(challengeId);
+async function closeChallenge(db, challengeId) {
+  const sql = "UPDATE challenges SET is_active = 0 WHERE id = $1";
+  const info = await db.run(sql, [challengeId]);
   return info.changes > 0;
 }
 
@@ -105,170 +108,184 @@ function closeChallenge(db, challengeId) {
 
 /**
  * Records a new submission in the database.
- * @param {import('better-sqlite3').Database} db The database connection.
+ * @param {object} db The database wrapper.
  * @param {object} submissionData The data for the submission.
- * @returns {number} The ID of the new submission.
+ * @returns {Promise<number>} The ID of the new submission.
  */
-function recordSubmission(db, submissionData) {
-  const stmt = db.prepare(`
+async function recordSubmission(db, submissionData) {
+  // Gemini: Converted named params (@name) to positional params ($1)
+  const sql = `
     INSERT INTO submissions (challenge_id, guild_id, user_id, username, channel_id, message_id, thread_id, content_text, attachment_url, link_url)
-    VALUES (@challenge_id, @guild_id, @user_id, @username, @channel_id, @message_id, @thread_id, @content_text, @attachment_url, @link_url)
-  `);
-  const info = stmt.run(submissionData);
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    RETURNING id
+  `;
+
+  const params = [
+    submissionData.challenge_id,
+    submissionData.guild_id,
+    submissionData.user_id,
+    submissionData.username,
+    submissionData.channel_id,
+    submissionData.message_id,
+    submissionData.thread_id,
+    submissionData.content_text,
+    submissionData.attachment_url,
+    submissionData.link_url,
+  ];
+
+  const info = await db.run(sql, params);
   return info.lastInsertRowid;
 }
 
 /**
  * Gets a single submission by its ID.
- * @param {import('better-sqlite3').Database} db The database connection.
+ * @param {object} db The database wrapper.
  * @param {number} submissionId The ID of the submission.
- * @returns {object} The submission object.
+ * @returns {Promise<object>} The submission object.
  */
-function getSubmissionById(db, submissionId) {
-  const stmt = db.prepare("SELECT * FROM submissions WHERE id = ?");
-  return stmt.get(submissionId);
+async function getSubmissionById(db, submissionId) {
+  const sql = "SELECT * FROM submissions WHERE id = $1";
+  return await db.get(sql, [submissionId]);
 }
 
 /**
  * Deletes a submission from the database.
- * @param {import('better-sqlite3').Database} db The database connection.
+ * @param {object} db The database wrapper.
  * @param {number} submissionId The ID of the submission to delete.
- * @returns {boolean} True if the deletion was successful.
+ * @returns {Promise<boolean>} True if the deletion was successful.
  */
-function deleteSubmission(db, submissionId) {
-  const stmt = db.prepare("DELETE FROM submissions WHERE id = ?");
-  const info = stmt.run(submissionId);
+async function deleteSubmission(db, submissionId) {
+  const sql = "DELETE FROM submissions WHERE id = $1";
+  const info = await db.run(sql, [submissionId]);
   return info.changes > 0;
 }
 
 /**
  * Gets all submissions by a specific user in a guild.
- * @param {import('better-sqlite3').Database} db The database connection.
+ * @param {object} db The database wrapper.
  * @param {string} userId The user's ID.
  * @param {string} guildId The guild's ID.
- * @returns {Array<object>} A list of submission objects.
+ * @returns {Promise<Array<object>>} A list of submission objects.
  */
-function getSubmissionsByUser(db, userId, guildId) {
-  const stmt = db.prepare(
-    "SELECT * FROM submissions WHERE user_id = ? AND guild_id = ?"
-  );
-  return stmt.all(userId, guildId);
+async function getSubmissionsByUser(db, userId, guildId) {
+  const sql = "SELECT * FROM submissions WHERE user_id = $1 AND guild_id = $2";
+  return await db.all(sql, [userId, guildId]);
 }
 
 /**
- * (NEW) Retrieves a list of submissions made by a specific user for the profile command.
- * @param {import('better-sqlite3').Database} db The database connection.
+ * Retrieves a list of submissions made by a specific user for the profile command.
+ * @param {object} db The database wrapper.
  * @param {string} guildId The ID of the guild.
  * @param {string} userId The ID of the user.
  * @param {number} limit The maximum number of submissions to return.
- * @returns {Array<object>} A list of the user's recent submissions.
+ * @returns {Promise<Array<object>>} A list of the user's recent submissions.
  */
-function getSubmissionsByUserId(db, guildId, userId, limit = 5) {
-  const stmt = db.prepare(
-    `SELECT id, challenge_id, message_id, channel_id, content_text FROM submissions 
-          WHERE guild_id = ? AND user_id = ? 
-          ORDER BY created_at DESC 
-          LIMIT ?`
-  );
-  return stmt.all(guildId, userId, limit);
+async function getSubmissionsByUserId(db, guildId, userId, limit = 5) {
+  const sql = `
+    SELECT id, challenge_id, message_id, channel_id, content_text 
+    FROM submissions 
+    WHERE guild_id = $1 AND user_id = $2 
+    ORDER BY created_at DESC 
+    LIMIT $3
+  `;
+  return await db.all(sql, [guildId, userId, limit]);
 }
 
 /**
- * // Gemini: Added for Web API
  * Retrieves all submissions for a specific challenge.
- * @param {import('better-sqlite3').Database} db The database connection.
+ * @param {object} db The database wrapper.
  * @param {number} challengeId The ID of the challenge.
- * @returns {Array<object>} A list of submission objects.
+ * @returns {Promise<Array<object>>} A list of submission objects.
  */
-function getSubmissionsByChallengeId(db, challengeId) {
-  const stmt = db.prepare(
-    "SELECT * FROM submissions WHERE challenge_id = ? ORDER BY votes DESC, created_at ASC"
-  );
-  return stmt.all(challengeId);
+async function getSubmissionsByChallengeId(db, challengeId) {
+  const sql =
+    "SELECT * FROM submissions WHERE challenge_id = $1 ORDER BY votes DESC, created_at ASC";
+  return await db.all(sql, [challengeId]);
 }
 
 /**
  * Gets a single submission by its unique message ID.
- * @param {import('better-sqlite3').Database} db The database connection.
+ * @param {object} db The database wrapper.
  * @param {string} messageId The message's ID.
- * @returns {object} The submission object.
+ * @returns {Promise<object>} The submission object.
  */
-function getSubmissionByMessageId(db, messageId) {
-  const stmt = db.prepare("SELECT * FROM submissions WHERE message_id = ?");
-  return stmt.get(messageId);
+async function getSubmissionByMessageId(db, messageId) {
+  const sql = "SELECT * FROM submissions WHERE message_id = $1";
+  return await db.get(sql, [messageId]);
 }
 
 /**
  * Increments the vote count for a submission.
- * @param {import('better-sqlite3').Database} db The database connection.
+ * @param {object} db The database wrapper.
  * @param {number} submissionId The ID of the submission.
  * @param {number} delta The amount to change the vote count by (usually 1 or -1).
  */
-function incrementSubmissionVotes(db, submissionId, delta = 1) {
-  const stmt = db.prepare(
-    "UPDATE submissions SET votes = votes + ? WHERE id = ?"
-  );
-  stmt.run(delta, submissionId);
+async function incrementSubmissionVotes(db, submissionId, delta = 1) {
+  const sql = "UPDATE submissions SET votes = votes + $1 WHERE id = $2";
+  await db.run(sql, [delta, submissionId]);
 }
 
 /**
  * Updates the content of an existing submission.
- * @param {import('better-sqlite3').Database} db The database connection.
+ * @param {object} db The database wrapper.
  * @param {number} submissionId The ID of the submission to update.
  * @param {object} newData An object with the new data ({ contentText, linkUrl, attachmentUrl }).
- * @returns {object} The updated submission object.
+ * @returns {Promise<object>} The updated submission object.
  */
-function updateSubmission(db, submissionId, newData) {
+async function updateSubmission(db, submissionId, newData) {
   const fields = [];
   const values = [];
+  let paramIndex = 1;
 
+  // Gemini: Dynamically build the query with $1, $2, etc.
   if (newData.contentText !== undefined) {
-    fields.push("content_text = ?");
+    fields.push(`content_text = $${paramIndex++}`);
     values.push(newData.contentText);
   }
   if (newData.linkUrl !== undefined) {
-    fields.push("link_url = ?");
+    fields.push(`link_url = $${paramIndex++}`);
     values.push(newData.linkUrl);
   }
   if (newData.attachmentUrl !== undefined) {
-    fields.push("attachment_url = ?");
+    fields.push(`attachment_url = $${paramIndex++}`);
     values.push(newData.attachmentUrl);
   }
 
   if (fields.length === 0) {
-    return getSubmissionById(db, submissionId);
+    return await getSubmissionById(db, submissionId);
   }
 
-  const stmt = db.prepare(`
-        UPDATE submissions
-        SET ${fields.join(", ")}
-        WHERE id = ?
-    `);
+  // Add the ID as the final parameter
+  values.push(submissionId);
 
-  stmt.run(...values, submissionId);
-  return getSubmissionById(db, submissionId);
+  const sql = `
+    UPDATE submissions
+    SET ${fields.join(", ")}
+    WHERE id = $${paramIndex}
+  `;
+
+  await db.run(sql, values);
+  return await getSubmissionById(db, submissionId);
 }
 
 // --- Badge Role Functions ---
 
-function addBadgeRole(db, { guildId, roleId, pointsRequired }) {
-  const stmt = db.prepare(
-    "INSERT INTO badge_roles (guild_id, role_id, points_required) VALUES (?, ?, ?)"
-  );
-  const info = stmt.run(guildId, roleId, pointsRequired);
+async function addBadgeRole(db, { guildId, roleId, pointsRequired }) {
+  const sql =
+    "INSERT INTO badge_roles (guild_id, role_id, points_required) VALUES ($1, $2, $3) RETURNING id";
+  const info = await db.run(sql, [guildId, roleId, pointsRequired]);
   return info.lastInsertRowid;
 }
 
-function getBadgeRoles(db, guildId) {
-  const stmt = db.prepare(
-    "SELECT * FROM badge_roles WHERE guild_id = ? ORDER BY points_required ASC"
-  );
-  return stmt.all(guildId);
+async function getBadgeRoles(db, guildId) {
+  const sql =
+    "SELECT * FROM badge_roles WHERE guild_id = $1 ORDER BY points_required ASC";
+  return await db.all(sql, [guildId]);
 }
 
-function removeBadgeRole(db, badgeId) {
-  const stmt = db.prepare("DELETE FROM badge_roles WHERE id = ?");
-  const info = stmt.run(badgeId);
+async function removeBadgeRole(db, badgeId) {
+  const sql = "DELETE FROM badge_roles WHERE id = $1";
+  const info = await db.run(sql, [badgeId]);
   return info.changes > 0;
 }
 
@@ -290,5 +307,5 @@ module.exports = {
   getBadgeRoles,
   removeBadgeRole,
   getSubmissionsByUserId,
-  getSubmissionsByChallengeId, // Gemini: Exported new function
+  getSubmissionsByChallengeId,
 };

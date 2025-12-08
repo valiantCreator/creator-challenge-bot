@@ -1,5 +1,6 @@
-// src/commands/closeChallenge.js
+// src/commands/close-challenge.js
 // Purpose: Slash command for admins to manually close an active challenge.
+// Gemini: Updated to use Async/Await for PostgreSQL migration.
 
 const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 const challengesService = require("../services/challenges");
@@ -27,7 +28,11 @@ module.exports = {
 
     try {
       // (FIX) Pass the database connection to the service.
-      const challenge = challengesService.getChallengeById(db, challengeId);
+      // Gemini: Added await
+      const challenge = await challengesService.getChallengeById(
+        db,
+        challengeId
+      );
 
       if (!challenge) {
         const errorEmbed = createErrorEmbed(
@@ -47,7 +52,8 @@ module.exports = {
 
       if (challenge.is_template) {
         // (FIX) Pass the database connection to the service.
-        challengesService.closeChallenge(db, challengeId);
+        // Gemini: Added await
+        await challengesService.closeChallenge(db, challengeId);
         cancelChallenge(challengeId); // This manages its own state, no db needed here.
 
         const successEmbed = createSuccessEmbed(
@@ -58,7 +64,8 @@ module.exports = {
       }
 
       // (FIX) Pass the database connection to the service.
-      const success = challengesService.closeChallenge(db, challengeId);
+      // Gemini: Added await
+      const success = await challengesService.closeChallenge(db, challengeId);
       if (!success) throw new Error("Database update failed unexpectedly.");
 
       const successEmbed = createSuccessEmbed(

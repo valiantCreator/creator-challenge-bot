@@ -1,5 +1,6 @@
 // src/index.js
 // Main bot entry point.
+// Gemini: Updated to await async initialization tasks (v2.0.0).
 
 const fs = require("fs");
 const path = require("path");
@@ -64,10 +65,17 @@ for (const file of eventFiles) {
 }
 
 // --- Client Ready Event ---
-client.once(Events.ClientReady, (c) => {
+// Gemini: Made async to properly await initialization tasks
+client.once(Events.ClientReady, async (c) => {
   console.log(`✅ Logged in as ${c.user.tag}`);
+
   // (FIX) Pass the db connection from the client to the scheduler.
-  initializeScheduler(c.db, c);
+  try {
+    // Gemini: Await the scheduler so we know it's ready
+    await initializeScheduler(c.db, c);
+  } catch (error) {
+    console.error("❌ Failed to initialize scheduler:", error);
+  }
 
   // Gemini: Start the Web API Server once the bot is ready
   startServer(c);

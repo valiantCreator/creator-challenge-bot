@@ -1,5 +1,6 @@
 // src/commands/listChallenges.js
 // Purpose: Slash command handler for listing all active challenges.
+// Gemini: Updated to use Async/Await for PostgreSQL migration.
 
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const { listActiveChallenges } = require("../services/challenges");
@@ -18,7 +19,8 @@ module.exports = {
 
     try {
       // (FIX) Pass the database connection as the first argument.
-      const challenges = listActiveChallenges(db, interaction.guildId);
+      // Gemini: Added await
+      const challenges = await listActiveChallenges(db, interaction.guildId);
 
       if (!challenges || challenges.length === 0) {
         const warningEmbed = new EmbedBuilder()

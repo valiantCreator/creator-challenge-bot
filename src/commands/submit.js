@@ -1,5 +1,6 @@
 // src/commands/submit.js
 // Purpose: Slash command handler for submitting an entry to a challenge.
+// Gemini: Updated to use Async/Await for PostgreSQL migration.
 
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const challengesService = require("../services/challenges");
@@ -36,8 +37,8 @@ module.exports = {
 
     try {
       const db = interaction.client.db;
-      // --- UPDATED: Fetch settings early to get the vote_emoji ---
-      const settings = settingsService.getGuildSettings(
+      // Gemini: Added await
+      const settings = await settingsService.getGuildSettings(
         db,
         interaction.guildId
       );
@@ -57,7 +58,11 @@ module.exports = {
         });
       }
 
-      const challenge = challengesService.getChallengeById(db, challengeId);
+      // Gemini: Added await
+      const challenge = await challengesService.getChallengeById(
+        db,
+        challengeId
+      );
       if (!challenge || !challenge.is_active || !challenge.thread_id) {
         return interaction.editReply({
           embeds: [
@@ -87,7 +92,8 @@ module.exports = {
         content: "Processing your submission...",
       });
 
-      const submissionId = challengesService.recordSubmission(db, {
+      // Gemini: Added await
+      const submissionId = await challengesService.recordSubmission(db, {
         challenge_id: challengeId,
         guild_id: interaction.guildId,
         user_id: interaction.user.id,

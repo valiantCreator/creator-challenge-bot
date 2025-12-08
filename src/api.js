@@ -1,20 +1,20 @@
 // src/api.js
 // Purpose: Express web server to serve data to the dashboard frontend.
-// Gemini: Updated to handle Link field in User Submissions (v1.0.1).
+// Gemini: Updated to use Async/Await for PostgreSQL migration (v2.0.0).
 
 const express = require("express");
 const cors = require("cors");
 const querystring = require("querystring");
 const cookieSession = require("cookie-session");
-const multer = require("multer"); // Gemini: Added for file uploads
-const fs = require("fs"); // Gemini: Added for file system cleanup
-const path = require("path"); // Gemini: Added for file path handling
+const multer = require("multer");
+const fs = require("fs");
+const path = require("path");
 const challengesService = require("./services/challenges");
 const pointsService = require("./services/points");
 const settingsService = require("./services/settings");
 const { PermissionFlagsBits } = require("discord.js");
 
-// Gemini: Configure Multer (Temporary storage for uploads)
+// Configure Multer (Temporary storage for uploads)
 const upload = multer({ dest: "uploads/" });
 
 /**
@@ -45,13 +45,13 @@ function startServer(client) {
   app.use(cors());
   app.use(express.json());
 
-  // Gemini: Configure Session Middleware
+  // Configure Session Middleware
   app.use(
     cookieSession({
       name: "session",
       keys: [CLIENT_SECRET || "fallback_secret"],
       maxAge: 24 * 60 * 60 * 1000,
-      secure: false,
+      secure: false, // Set to true if using HTTPS in production
       httpOnly: true,
       sameSite: "lax",
     })
@@ -171,9 +171,10 @@ function startServer(client) {
   });
 
   // --- DATA ENDPOINTS ---
-  app.get("/api/challenges", (req, res) => {
+  // Gemini: Added async/await
+  app.get("/api/challenges", async (req, res) => {
     try {
-      const challenges = challengesService.listActiveChallenges(
+      const challenges = await challengesService.listActiveChallenges(
         client.db,
         GUILD_ID
       );
@@ -184,10 +185,11 @@ function startServer(client) {
     }
   });
 
-  app.get("/api/challenges/:id", (req, res) => {
+  // Gemini: Added async/await
+  app.get("/api/challenges/:id", async (req, res) => {
     try {
       const challengeId = req.params.id;
-      const challenge = challengesService.getChallengeById(
+      const challenge = await challengesService.getChallengeById(
         client.db,
         challengeId
       );
@@ -202,10 +204,11 @@ function startServer(client) {
     }
   });
 
-  app.get("/api/challenges/:id/submissions", (req, res) => {
+  // Gemini: Added async/await
+  app.get("/api/challenges/:id/submissions", async (req, res) => {
     try {
       const challengeId = req.params.id;
-      const submissions = challengesService.getSubmissionsByChallengeId(
+      const submissions = await challengesService.getSubmissionsByChallengeId(
         client.db,
         challengeId
       );
@@ -219,11 +222,12 @@ function startServer(client) {
     }
   });
 
-  app.get("/api/leaderboard", (req, res) => {
+  // Gemini: Added async/await
+  app.get("/api/leaderboard", async (req, res) => {
     try {
       const period = req.query.period || "all-time";
       const limit = parseInt(req.query.limit) || 50;
-      const leaderboard = pointsService.getLeaderboard(
+      const leaderboard = await pointsService.getLeaderboard(
         client.db,
         GUILD_ID,
         limit,
@@ -237,14 +241,15 @@ function startServer(client) {
   });
 
   // --- ADMIN ACTION: DELETE ---
-  app.delete("/api/submissions/:id", (req, res) => {
+  // Gemini: Added async/await
+  app.delete("/api/submissions/:id", async (req, res) => {
     if (!req.session || !req.session.user || !req.session.user.isAdmin) {
       return res.status(403).json({ error: "Unauthorized: Admins only." });
     }
 
     const submissionId = req.params.id;
     try {
-      const success = challengesService.deleteSubmission(
+      const success = await challengesService.deleteSubmission(
         client.db,
         submissionId
       );
@@ -263,7 +268,6 @@ function startServer(client) {
   });
 
   // --- USER ACTION: SUBMIT (NEW) ---
-  // Gemini: Handles multipart/form-data upload, sends to Discord, records in DB
   app.post(
     "/api/challenges/:id/submit",
     upload.single("file"),
@@ -276,12 +280,12 @@ function startServer(client) {
       const challengeId = req.params.id;
       const user = req.session.user;
       const caption = req.body.caption || "";
-      const link = req.body.link || ""; // Gemini: Extract Link
+      const link = req.body.link || "";
       const file = req.file;
 
       try {
-        // 2. Get Challenge Info
-        const challenge = challengesService.getChallengeById(
+        // 2. Get Challenge Info (Async)
+        const challenge = await challengesService.getChallengeById(
           client.db,
           challengeId
         );
@@ -294,7 +298,7 @@ function startServer(client) {
 
         // 3. Post to Discord Thread/Channel
         const channel = await client.channels.fetch(challenge.channel_id);
-        const threadId = challenge.thread_id || challenge.message_id; // Prefer thread if exists
+        const threadId = challenge.thread_id || challenge.message_id;
 
         let targetChannel = channel;
         if (threadId) {
@@ -306,7 +310,6 @@ function startServer(client) {
         }
 
         // Prepare the payload for Discord
-        // Gemini: Format message to include caption AND link
         const messageContent = [
           `**Submission by ${user.username}**`,
           caption,
@@ -335,18 +338,22 @@ function startServer(client) {
           attachmentUrl = discordMessage.attachments.first().url;
         }
 
-        const submissionId = challengesService.recordSubmission(client.db, {
-          challenge_id: challengeId,
-          guild_id: GUILD_ID,
-          user_id: user.id,
-          username: user.username,
-          channel_id: discordMessage.channelId,
-          message_id: discordMessage.id,
-          thread_id: discordMessage.channelId,
-          content_text: caption,
-          attachment_url: attachmentUrl,
-          link_url: link || null, // Gemini: Save the link
-        });
+        // Gemini: Added await
+        const submissionId = await challengesService.recordSubmission(
+          client.db,
+          {
+            challenge_id: challengeId,
+            guild_id: GUILD_ID,
+            user_id: user.id,
+            username: user.username,
+            channel_id: discordMessage.channelId,
+            message_id: discordMessage.id,
+            thread_id: discordMessage.channelId,
+            content_text: caption,
+            attachment_url: attachmentUrl,
+            link_url: link || null,
+          }
+        );
 
         // 5. Cleanup
         if (file) {
