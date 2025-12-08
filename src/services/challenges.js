@@ -1,6 +1,6 @@
 // src/services/challenges.js
 // Purpose: Contains all database logic for challenges, submissions, and badges.
-// Gemini: Refactored for PostgreSQL (Async/Await, $1 placeholders, RETURNING id).
+// Gemini: Added logic for Dashboard Voting (addVote, removeVote, checkUserVote).
 
 // --- Challenge Functions ---
 
@@ -23,7 +23,7 @@ async function createChallenge(
     cronSchedule = null,
   }
 ) {
-  // Gemini: Added RETURNING id to get the new row ID immediately
+  // Added RETURNING id to get the new row ID immediately
   const sql = `
     INSERT INTO challenges (guild_id, title, description, type, created_by, channel_id, is_active, is_template, cron_schedule)
     VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8)
@@ -113,7 +113,7 @@ async function closeChallenge(db, challengeId) {
  * @returns {Promise<number>} The ID of the new submission.
  */
 async function recordSubmission(db, submissionData) {
-  // Gemini: Converted named params (@name) to positional params ($1)
+  // Converted named params (@name) to positional params ($1)
   const sql = `
     INSERT INTO submissions (challenge_id, guild_id, user_id, username, channel_id, message_id, thread_id, content_text, attachment_url, link_url)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -215,7 +215,7 @@ async function getSubmissionByMessageId(db, messageId) {
 }
 
 /**
- * Increments the vote count for a submission.
+ * Increments the vote count for a submission (Legacy/Discord method).
  * @param {object} db The database wrapper.
  * @param {number} submissionId The ID of the submission.
  * @param {number} delta The amount to change the vote count by (usually 1 or -1).
@@ -237,7 +237,7 @@ async function updateSubmission(db, submissionId, newData) {
   const values = [];
   let paramIndex = 1;
 
-  // Gemini: Dynamically build the query with $1, $2, etc.
+  // Dynamically build the query with $1, $2, etc.
   if (newData.contentText !== undefined) {
     fields.push(`content_text = $${paramIndex++}`);
     values.push(newData.contentText);
@@ -266,6 +266,57 @@ async function updateSubmission(db, submissionId, newData) {
 
   await db.run(sql, values);
   return await getSubmissionById(db, submissionId);
+}
+
+// --- Gemini: NEW Voting Functions for Dashboard ---
+
+/**
+ * Checks if a user has already voted for a submission.
+ * @param {object} db The database wrapper.
+ * @param {number} submissionId The ID of the submission.
+ * @param {string} userId The ID of the user.
+ * @returns {Promise<boolean>} True if the user has voted.
+ */
+async function checkUserVote(db, submissionId, userId) {
+  const sql =
+    "SELECT 1 FROM submission_votes WHERE submission_id = $1 AND user_id = $2";
+  const res = await db.get(sql, [submissionId, userId]);
+  return !!res;
+}
+
+/**
+ * Adds a vote from a specific user.
+ * Updates both the submission count and the vote tracking table.
+ * @param {object} db The database wrapper.
+ * @param {object} params { submissionId, userId, guildId }
+ */
+async function addVote(db, { submissionId, userId, guildId }) {
+  // 1. Insert tracking record (This will fail if they already voted due to Primary Key)
+  const sqlTrack =
+    "INSERT INTO submission_votes (submission_id, user_id, guild_id) VALUES ($1, $2, $3)";
+  await db.run(sqlTrack, [submissionId, userId, guildId]);
+
+  // 2. Increment the total count
+  await incrementSubmissionVotes(db, submissionId, 1);
+}
+
+/**
+ * Removes a vote from a specific user.
+ * @param {object} db The database wrapper.
+ * @param {object} params { submissionId, userId }
+ */
+async function removeVote(db, { submissionId, userId }) {
+  // 1. Delete tracking record
+  const sqlTrack =
+    "DELETE FROM submission_votes WHERE submission_id = $1 AND user_id = $2";
+  const info = await db.run(sqlTrack, [submissionId, userId]);
+
+  // 2. Decrement only if a row was actually deleted (user had voted)
+  if (info.changes > 0) {
+    await incrementSubmissionVotes(db, submissionId, -1);
+    return true;
+  }
+  return false;
 }
 
 // --- Badge Role Functions ---
@@ -308,4 +359,8 @@ module.exports = {
   removeBadgeRole,
   getSubmissionsByUserId,
   getSubmissionsByChallengeId,
+  // Export new voting functions
+  checkUserVote,
+  addVote,
+  removeVote,
 };

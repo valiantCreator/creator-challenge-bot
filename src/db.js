@@ -1,16 +1,13 @@
 // src/db.js
 // Purpose: Database connection and schema management for PostgreSQL (Supabase).
-// Gemini: Refactored with explicit .env path loading (v2.0.2).
+// Gemini: Updated with 'submission_votes' table for Dashboard voting (v3.3.0).
 
 const path = require("path");
-// Gemini: Explicitly point to the .env file in the root directory
-// This fixes the issue where dotenv can't find the file when run from inside src/
+// Explicitly point to the .env file in the root directory
 require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
 
 const { Pool } = require("pg");
 
-// Gemini: Debug logging to verify the variable is loaded
-// We print the TYPE of the variable, not the value, for security.
 console.log(
   `[DB] Loading DATABASE_URL... Type: ${typeof process.env.DATABASE_URL}`
 );
@@ -18,7 +15,7 @@ console.log(
 if (!process.env.DATABASE_URL) {
   console.error("❌ FATAL ERROR: DATABASE_URL is missing from .env file.");
   console.error(
-    "   Please ensure your .env file is in the project root and contains DATABASE_URL=..."
+    "    Please ensure your .env file is in the project root and contains DATABASE_URL=..."
   );
   process.exit(1);
 }
@@ -60,7 +57,6 @@ const db = {
 
 // 3. Initialize Schema
 async function init() {
-  // Gemini: Connect logic wrapped in try/catch to debug connection errors
   let client;
   try {
     client = await pool.connect();
@@ -152,12 +148,27 @@ async function init() {
       );
     `);
 
+    // Gemini: NEW TABLE for Dashboard Voting
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS submission_votes (
+        submission_id INTEGER REFERENCES submissions(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL,
+        guild_id TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (submission_id, user_id)
+      );
+    `);
+
     // Indexes
     await client.query(
       `CREATE INDEX IF NOT EXISTS idx_point_logs_guild_timestamp ON point_logs (guild_id, created_at DESC);`
     );
     await client.query(
       `CREATE INDEX IF NOT EXISTS idx_point_logs_user ON point_logs (guild_id, user_id);`
+    );
+    // Gemini: Index for vote lookups
+    await client.query(
+      `CREATE INDEX IF NOT EXISTS idx_submission_votes_user ON submission_votes (user_id);`
     );
 
     await client.query("COMMIT");
