@@ -1,6 +1,6 @@
 // src/api.js
 // Purpose: Express web server to serve data to the dashboard frontend.
-// Gemini: Updated to use Async/Await for PostgreSQL migration (v2.0.0).
+// Gemini: Updated CORS and Redirects for Production (v2.1.0).
 
 const express = require("express");
 const cors = require("cors");
@@ -30,19 +30,23 @@ function startServer(client) {
   const CLIENT_SECRET = process.env.CLIENT_SECRET;
   const REDIRECT_URI = process.env.REDIRECT_URI;
 
+  // Gemini: New Env Var to secure CORS and Redirects
+  const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+
   if (!GUILD_ID) {
-    console.warn(
-      "⚠️ [API] GUILD_ID not found in .env. API may return empty results."
-    );
-  }
-  if (!CLIENT_SECRET || !REDIRECT_URI) {
-    console.warn(
-      "⚠️ [API] CLIENT_SECRET or REDIRECT_URI missing. Authentication will fail."
-    );
+    console.warn("⚠️ [API] GUILD_ID not found in .env.");
   }
 
   // --- Middleware ---
-  app.use(cors());
+
+  // Gemini: Strict CORS policy for credentials
+  app.use(
+    cors({
+      origin: FRONTEND_URL, // Allow only this specific frontend
+      credentials: true, // Allow cookies/sessions
+    })
+  );
+
   app.use(express.json());
 
   // Configure Session Middleware
@@ -51,9 +55,9 @@ function startServer(client) {
       name: "session",
       keys: [CLIENT_SECRET || "fallback_secret"],
       maxAge: 24 * 60 * 60 * 1000,
-      secure: false, // Set to true if using HTTPS in production
+      secure: false, // Set to true if primarily using HTTPS
       httpOnly: true,
-      sameSite: "lax",
+      sameSite: "lax", // 'lax' is usually best for OAuth redirects
     })
   );
 
@@ -85,7 +89,8 @@ function startServer(client) {
     const code = req.query.code;
 
     if (!code) {
-      return res.redirect("/?error=no_code");
+      // Gemini: Redirect back to frontend on error
+      return res.redirect(`${FRONTEND_URL}/?error=no_code`);
     }
 
     try {
@@ -109,7 +114,7 @@ function startServer(client) {
       const tokenData = await tokenResponse.json();
       if (tokenData.error) {
         console.error("OAuth Token Error:", tokenData);
-        return res.redirect("/?error=token_exchange_failed");
+        return res.redirect(`${FRONTEND_URL}/?error=token_exchange_failed`);
       }
 
       const [userRes, guildRes] = await Promise.all([
@@ -127,7 +132,7 @@ function startServer(client) {
       const targetGuild = guildsData.find((g) => g.id === GUILD_ID);
 
       if (!targetGuild) {
-        return res.redirect("/?error=not_a_member");
+        return res.redirect(`${FRONTEND_URL}/?error=not_a_member`);
       }
 
       const permissions = BigInt(targetGuild.permissions);
@@ -148,10 +153,11 @@ function startServer(client) {
       req.session.user = sessionUser;
       req.sessionOptions.maxAge = 24 * 60 * 60 * 1000;
 
-      res.redirect("/");
+      // Gemini: CRITICAL FIX - Redirect back to the Frontend URL, not the Backend root
+      res.redirect(FRONTEND_URL);
     } catch (error) {
       console.error("OAuth Callback Error:", error);
-      res.redirect("/?error=server_error");
+      res.redirect(`${FRONTEND_URL}/?error=server_error`);
     }
   });
 
@@ -171,7 +177,6 @@ function startServer(client) {
   });
 
   // --- DATA ENDPOINTS ---
-  // Gemini: Added async/await
   app.get("/api/challenges", async (req, res) => {
     try {
       const challenges = await challengesService.listActiveChallenges(
@@ -185,7 +190,6 @@ function startServer(client) {
     }
   });
 
-  // Gemini: Added async/await
   app.get("/api/challenges/:id", async (req, res) => {
     try {
       const challengeId = req.params.id;
@@ -204,7 +208,6 @@ function startServer(client) {
     }
   });
 
-  // Gemini: Added async/await
   app.get("/api/challenges/:id/submissions", async (req, res) => {
     try {
       const challengeId = req.params.id;
@@ -222,7 +225,6 @@ function startServer(client) {
     }
   });
 
-  // Gemini: Added async/await
   app.get("/api/leaderboard", async (req, res) => {
     try {
       const period = req.query.period || "all-time";
@@ -241,7 +243,6 @@ function startServer(client) {
   });
 
   // --- ADMIN ACTION: DELETE ---
-  // Gemini: Added async/await
   app.delete("/api/submissions/:id", async (req, res) => {
     if (!req.session || !req.session.user || !req.session.user.isAdmin) {
       return res.status(403).json({ error: "Unauthorized: Admins only." });
@@ -338,7 +339,6 @@ function startServer(client) {
           attachmentUrl = discordMessage.attachments.first().url;
         }
 
-        // Gemini: Added await
         const submissionId = await challengesService.recordSubmission(
           client.db,
           {
