@@ -12,7 +12,8 @@ const path = require("path");
 const challengesService = require("./services/challenges");
 const pointsService = require("./services/points");
 const settingsService = require("./services/settings");
-const { PermissionFlagsBits } = require("discord.js");
+// Gemini: Added EmbedBuilder for structured messages
+const { PermissionFlagsBits, EmbedBuilder } = require("discord.js");
 
 // Configure Multer (Temporary storage for uploads)
 const upload = multer({ dest: "uploads/" });
@@ -310,7 +311,13 @@ function startServer(client) {
           return res.status(400).json({ error: "Challenge has no channel." });
         }
 
-        // 3. Post to Discord Thread/Channel
+        // 3. Get Settings (Need vote emoji for Embed Footer)
+        const settings = await settingsService.getGuildSettings(
+          client.db,
+          GUILD_ID
+        );
+
+        // 4. Post to Discord Thread/Channel
         const channel = await client.channels.fetch(challenge.channel_id);
         const threadId = challenge.thread_id || challenge.message_id;
 
@@ -323,17 +330,26 @@ function startServer(client) {
           }
         }
 
-        // Prepare the payload for Discord
-        const messageContent = [
-          `**Submission by ${user.username}**`,
-          caption,
-          link ? `\n🔗 ${link}` : "",
-        ]
-          .join("\n")
-          .trim();
+        // Gemini: Build Embed to match Slash Command style
+        const embed = new EmbedBuilder()
+          .setAuthor({
+            name: `Submission from ${user.username}`,
+            iconURL: user.avatar
+              ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`
+              : undefined,
+          })
+          .setTitle(`Entry for: #${challenge.id} — ${challenge.title}`)
+          .setColor("#0099ff") // You can change this color to match your bot
+          .setTimestamp();
+
+        if (caption) embed.addFields({ name: "📝 Notes", value: caption });
+        if (link) embed.addFields({ name: "🔗 Link", value: link });
+
+        // Initial footer (will update with ID later)
+        embed.setFooter({ text: `Vote with ${settings.vote_emoji}` });
 
         const messagePayload = {
-          content: messageContent,
+          embeds: [embed],
           files: [],
         };
 
@@ -342,6 +358,8 @@ function startServer(client) {
             attachment: file.path,
             name: file.originalname,
           });
+          // Attach the uploaded image to the embed
+          embed.setImage(`attachment://${file.originalname}`);
         }
 
         const discordMessage = await targetChannel.send(messagePayload);
@@ -349,10 +367,6 @@ function startServer(client) {
         // Gemini: AUTO-REACT FIX
         // Fetch the configured vote emoji and react to the message immediately
         try {
-          const settings = await settingsService.getGuildSettings(
-            client.db,
-            GUILD_ID
-          );
           await discordMessage.react(settings.vote_emoji);
         } catch (reactError) {
           console.error(
@@ -361,7 +375,7 @@ function startServer(client) {
           );
         }
 
-        // 4. Record in Database
+        // 5. Record in Database
         let attachmentUrl = null;
         if (discordMessage.attachments.size > 0) {
           attachmentUrl = discordMessage.attachments.first().url;
@@ -383,7 +397,17 @@ function startServer(client) {
           }
         );
 
-        // 5. Cleanup
+        // 6. Update Footer with Submission ID (Consistency)
+        try {
+          embed.setFooter({
+            text: `Submission ID: ${submissionId} • Vote with ${settings.vote_emoji}`,
+          });
+          await discordMessage.edit({ embeds: [embed] });
+        } catch (editError) {
+          console.warn("Could not update footer with ID:", editError);
+        }
+
+        // 7. Cleanup
         if (file) {
           fs.unlinkSync(file.path);
         }
