@@ -263,3 +263,36 @@
   outline: none;
   border-color: var(--accent);
 }
+
+/* --- Gemini: New Styles for Voting UI --- */
+
+.vote-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vote-btn {
+  background-color: #2b2d31;
+  color: #fff;
+  border: 1px solid #3f4147;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s ease;
+  margin-left: 0.5rem;
+}
+
+.vote-btn:hover:not(:disabled) {
+  background-color: #5865f2; /* Discord Blurple */
+  border-color: #5865f2;
+}
+
+/* Style for when the button is disabled (e.g. own submission) */
+.vote-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #232428;
+  border-color: #2f3136;
+}

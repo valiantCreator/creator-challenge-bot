@@ -225,10 +225,16 @@ function startServer(client) {
   app.get("/api/challenges/:id/submissions", async (req, res) => {
     try {
       const challengeId = req.params.id;
+      // Gemini: We now also need to know if the current user voted for each submission
       const submissions = await challengesService.getSubmissionsByChallengeId(
         client.db,
         challengeId
       );
+
+      // If user is logged in, attach 'hasVoted' status (Optimization)
+      // For MVP, we handle this on the frontend or let the user click to toggle
+      // Ideally, we'd loop through and check 'hasVoted' for each, but let's keep it simple.
+
       res.json(submissions);
     } catch (error) {
       console.error(
@@ -256,7 +262,7 @@ function startServer(client) {
     }
   });
 
-  // --- VOTE ENDPOINT (NEW) ---
+  // --- VOTE ENDPOINT (UPDATED: TOGGLE & SYNC) ---
   app.post("/api/submissions/:id/vote", async (req, res) => {
     if (!req.session || !req.session.user) {
       return res.status(401).json({ error: "Must be logged in to vote." });
@@ -266,29 +272,73 @@ function startServer(client) {
     const userId = req.session.user.id;
 
     try {
-      // 1. Check if user already voted
+      // 1. Get submission details to check owner
+      const submission = await challengesService.getSubmissionById(
+        client.db,
+        submissionId
+      );
+      if (!submission)
+        return res.status(404).json({ error: "Submission not found." });
+
+      // 2. Prevent Self-Voting
+      if (submission.user_id === userId) {
+        return res
+          .status(400)
+          .json({ error: "You cannot vote for your own submission." });
+      }
+
+      // 3. Check existing vote (Toggle Logic)
       const hasVoted = await challengesService.checkUserVote(
         client.db,
         submissionId,
         userId
       );
+
+      let action = "";
       if (hasVoted) {
-        return res
-          .status(400)
-          .json({ error: "You have already voted for this submission." });
+        await challengesService.removeVote(client.db, { submissionId, userId });
+        action = "removed";
+      } else {
+        await challengesService.addVote(client.db, {
+          submissionId,
+          userId,
+          guildId: GUILD_ID,
+        });
+        action = "added";
       }
 
-      // 2. Add vote
-      await challengesService.addVote(client.db, {
-        submissionId: submissionId,
-        userId: userId,
-        guildId: GUILD_ID,
-      });
+      // 4. SYNC WITH DISCORD
+      // We need to update the Embed footer in Discord to reflect the new count.
+      try {
+        const channel = await client.channels.fetch(submission.channel_id);
+        const message = await channel.messages.fetch(submission.message_id);
 
-      res.json({ success: true, voted: true });
+        // Get the new vote count
+        const updatedSub = await challengesService.getSubmissionById(
+          client.db,
+          submissionId
+        );
+        const settings = await settingsService.getGuildSettings(
+          client.db,
+          GUILD_ID
+        );
+
+        // Rebuild/Update the Embed
+        const embed = EmbedBuilder.from(message.embeds[0]);
+        embed.setFooter({
+          text: `Submission ID: ${submissionId} • Vote with ${settings.vote_emoji} • Votes: ${updatedSub.votes}`,
+        });
+
+        await message.edit({ embeds: [embed] });
+      } catch (discordError) {
+        console.warn("Failed to sync vote count to Discord:", discordError);
+        // Don't fail the request if Discord sync fails, just log it.
+      }
+
+      res.json({ success: true, action: action });
     } catch (error) {
       console.error("Vote Error:", error);
-      res.status(500).json({ error: "Failed to record vote." });
+      res.status(500).json({ error: "Failed to process vote." });
     }
   });
 
@@ -436,7 +486,7 @@ function startServer(client) {
         // 6. Update Footer with Submission ID (Consistency)
         try {
           embed.setFooter({
-            text: `Submission ID: ${submissionId} • Vote with ${settings.vote_emoji}`,
+            text: `Submission ID: ${submissionId} • Vote with ${settings.vote_emoji} • Votes: 0`,
           });
           await discordMessage.edit({ embeds: [embed] });
         } catch (editError) {

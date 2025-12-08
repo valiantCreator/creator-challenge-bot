@@ -91,15 +91,19 @@ function ChallengeDetails({ user }) {
     if (!user) return alert("Please log in to vote!");
 
     try {
-      await api.post(`/api/submissions/${submissionId}/vote`);
+      const response = await api.post(`/api/submissions/${submissionId}/vote`);
+      const { action } = response.data;
 
-      // Optimistic Update: Increment vote count locally
+      // Optimistic Update: Increment or Decrement
       setSubmissions((prev) =>
-        prev.map((sub) =>
-          sub.id === submissionId ? { ...sub, votes: sub.votes + 1 } : sub
-        )
+        prev.map((sub) => {
+          if (sub.id === submissionId) {
+            const newVotes = action === "added" ? sub.votes + 1 : sub.votes - 1;
+            return { ...sub, votes: newVotes };
+          }
+          return sub;
+        })
       );
-      alert("Vote recorded!");
     } catch (error) {
       const msg = error.response?.data?.error || "Failed to vote.";
       alert(msg);
@@ -233,11 +237,18 @@ function ChallengeDetails({ user }) {
                     <span className="votes">👍 {sub.votes}</span>
                     {user && (
                       <button
-                        className="vote-btn"
+                        className={`vote-btn ${
+                          user.id === sub.user_id ? "disabled" : ""
+                        }`}
                         onClick={() => handleVote(sub.id)}
-                        title="Vote for this submission"
+                        disabled={user.id === sub.user_id}
+                        title={
+                          user.id === sub.user_id
+                            ? "You cannot vote for yourself"
+                            : "Vote for this submission"
+                        }
                       >
-                        Vote
+                        {user.id === sub.user_id ? "Own Submission" : "Vote"}
                       </button>
                     )}
                   </div>
