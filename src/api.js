@@ -388,10 +388,11 @@ function startServer(client) {
   const clientDistPath = path.join(__dirname, "../client/dist");
   app.use(express.static(clientDistPath));
 
-  // 2. Handle React Routing (Wildcard)
+  /// 2. Handle React Routing (Wildcard)
   // If a request comes in for "/dashboard" or "/challenge/5" (and wasn't an API call),
   // send the index.html so React Router can take over.
-  app.get("*", (req, res) => {
+  // Gemini: Switched to Regex /.*/ to fix "Missing parameter name" error on Render
+  app.get(/.*/, (req, res) => {
     res.sendFile(path.join(clientDistPath, "index.html"));
   });
 
