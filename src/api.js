@@ -1,6 +1,6 @@
 // src/api.js
 // Purpose: Express web server to serve data to the dashboard frontend.
-// Gemini: Updated CORS and Redirects for Production (v2.1.0).
+// Gemini: Updated Cookie Settings for Cross-Site Render Deployment (v2.2.0).
 
 const express = require("express");
 const cors = require("cors");
@@ -37,6 +37,11 @@ function startServer(client) {
     console.warn("⚠️ [API] GUILD_ID not found in .env.");
   }
 
+  // --- Gemini: CRITICAL FIX for Render Cookies ---
+  // Render uses a load balancer (proxy), so the request looks like HTTP to Node.
+  // We must trust the proxy so Express knows it's actually HTTPS.
+  app.set("trust proxy", 1);
+
   // --- Middleware ---
 
   // Gemini: Strict CORS policy for credentials
@@ -55,9 +60,11 @@ function startServer(client) {
       name: "session",
       keys: [CLIENT_SECRET || "fallback_secret"],
       maxAge: 24 * 60 * 60 * 1000,
-      secure: false, // Set to true if primarily using HTTPS
+
+      // Gemini: Cross-Site Cookie Settings
+      secure: true, // REQUIRED: Must be true for sameSite: 'none'
+      sameSite: "none", // REQUIRED: Allows cookie to travel from Bot -> Dashboard
       httpOnly: true,
-      sameSite: "lax", // 'lax' is usually best for OAuth redirects
     })
   );
 
