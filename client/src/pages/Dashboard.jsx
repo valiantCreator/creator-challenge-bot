@@ -2,7 +2,8 @@
 // Purpose: The home page that displays a grid of all active challenges.
 
 import { useState, useEffect } from "react";
-import axios from "axios";
+// Gemini: Use our configured API helper instead of raw axios
+import api from "../api";
 import ChallengeCard from "../components/ChallengeCard";
 import "./Dashboard.css";
 
@@ -11,7 +12,8 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    axios
+    // Gemini: changed 'axios.get' to 'api.get'
+    api
       .get("/api/challenges")
       .then((res) => {
         setChallenges(res.data);

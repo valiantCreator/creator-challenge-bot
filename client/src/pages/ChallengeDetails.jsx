@@ -1,22 +1,22 @@
 // client/src/pages/ChallengeDetails.jsx
 // Purpose: Displays the full gallery of submissions for a specific challenge.
-// Gemini: Updated to include Link field in User Submission Form (v1.0.1).
+// Gemini: Updated to use 'api' helper for Render deployment.
 
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import axios from "axios";
+// Gemini: Use our configured API helper instead of raw axios
+import api from "../api";
 import "./ChallengeDetails.css";
 
-// Gemini: 'user' prop passed from App.jsx contains { isAdmin: true/false }
 function ChallengeDetails({ user }) {
   const { id } = useParams(); // Get the ID from the URL (e.g., /challenge/5)
   const [challenge, setChallenge] = useState(null);
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Gemini: State for the Submission Form
+  // State for the Submission Form
   const [caption, setCaption] = useState("");
-  const [link, setLink] = useState(""); // Gemini: New Link State
+  const [link, setLink] = useState("");
   const [file, setFile] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -25,8 +25,9 @@ function ChallengeDetails({ user }) {
     const fetchData = async () => {
       try {
         const [chalRes, subRes] = await Promise.all([
-          axios.get(`/api/challenges/${id}`),
-          axios.get(`/api/challenges/${id}/submissions`),
+          // Gemini: Changed axios.get to api.get
+          api.get(`/api/challenges/${id}`),
+          api.get(`/api/challenges/${id}/submissions`),
         ]);
 
         setChallenge(chalRes.data);
@@ -41,14 +42,14 @@ function ChallengeDetails({ user }) {
     fetchData();
   }, [id]);
 
-  // Gemini: Handle File Selection
+  // Handle File Selection
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
     }
   };
 
-  // Gemini: Handle New Submission
+  // Handle New Submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     // Validation: Require at least one content field
@@ -60,13 +61,14 @@ function ChallengeDetails({ user }) {
     setIsSubmitting(true);
     const formData = new FormData();
     formData.append("caption", caption);
-    formData.append("link", link); // Gemini: Send the link
+    formData.append("link", link);
     if (file) {
       formData.append("file", file);
     }
 
     try {
-      await axios.post(`/api/challenges/${id}/submit`, formData, {
+      // Gemini: Changed axios.post to api.post
+      await api.post(`/api/challenges/${id}/submit`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
@@ -78,7 +80,8 @@ function ChallengeDetails({ user }) {
       alert("Submission successful!");
 
       // Refresh the list to show the new item
-      const newSubRes = await axios.get(`/api/challenges/${id}/submissions`);
+      // Gemini: Changed axios.get to api.get
+      const newSubRes = await api.get(`/api/challenges/${id}/submissions`);
       setSubmissions(newSubRes.data);
     } catch (error) {
       console.error("Submission error:", error);
@@ -87,7 +90,7 @@ function ChallengeDetails({ user }) {
     }
   };
 
-  // Gemini: Handle the delete action
+  // Handle the delete action
   const handleDelete = async (submissionId) => {
     if (
       !window.confirm(
@@ -98,8 +101,9 @@ function ChallengeDetails({ user }) {
     }
 
     try {
-      await axios.delete(`/api/submissions/${submissionId}`);
-      // Remove the item from the UI immediately so we don't need to refresh
+      // Gemini: Changed axios.delete to api.delete
+      await api.delete(`/api/submissions/${submissionId}`);
+      // Remove the item from the UI immediately
       setSubmissions(submissions.filter((sub) => sub.id !== submissionId));
     } catch (error) {
       alert("Failed to delete. You might not be authorized.");
@@ -125,13 +129,12 @@ function ChallengeDetails({ user }) {
         </div>
       </header>
 
-      {/* Gemini: Submission Form Section */}
+      {/*Submission Form Section */}
       {/* Only show if user is logged in */}
       {user ? (
         <div className="submission-form-container">
           <h3>Submit Your Entry</h3>
           <form onSubmit={handleSubmit} className="submission-form">
-            {/* Gemini: New Link Input */}
             <input
               type="url"
               placeholder="Add a link (optional)..."
@@ -213,7 +216,7 @@ function ChallengeDetails({ user }) {
                   <span className="votes">👍 {sub.votes}</span>
                 </div>
 
-                {/* Gemini: Admin Controls - Only visible to Admins */}
+                {/* Admin Controls */}
                 {user && user.isAdmin && (
                   <button
                     className="delete-btn"

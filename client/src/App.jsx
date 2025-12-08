@@ -1,10 +1,11 @@
 // client/src/App.jsx
 // Purpose: Main Router configuration & Authentication Wrapper.
-// Gemini: Updated to support BOTH URL-based and Cookie-based login (Hybrid Fix).
+// Gemini: Updated to use 'api' helper and handle cross-domain auth redirects.
 
 import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
+// Gemini: Import our configured API helper instead of raw axios
+import api from "./api";
 import Dashboard from "./pages/Dashboard";
 import ChallengeDetails from "./pages/ChallengeDetails";
 import "./App.css";
@@ -34,7 +35,8 @@ function App() {
 
       // 2. If no URL param, check the Session Cookie (Persistence method)
       try {
-        const response = await axios.get("/api/auth/me");
+        // Gemini: Use 'api.get' so it hits the correct backend URL
+        const response = await api.get("/api/auth/me");
         setUser(response.data);
       } catch (err) {
         // Not logged in (401), or cookie expired
@@ -48,12 +50,16 @@ function App() {
   }, []);
 
   const handleLogin = () => {
-    window.location.href = "/api/auth/login";
+    // Gemini: Manually construct the full URL for the browser redirect.
+    // 'api.get' is for data; window.location needs the full string.
+    const baseURL = import.meta.env.VITE_API_URL || "";
+    window.location.href = `${baseURL}/api/auth/login`;
   };
 
   const handleLogout = async () => {
     try {
-      await axios.post("/api/auth/logout");
+      // Gemini: Use 'api.post'
+      await api.post("/api/auth/logout");
     } catch (e) {
       console.error("Logout error", e);
     }
