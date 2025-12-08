@@ -1,6 +1,6 @@
 // client/src/pages/ChallengeDetails.jsx
 // Purpose: Displays the full gallery of submissions for a specific challenge.
-// Gemini: Updated to use 'api' helper for Render deployment.
+// Gemini: Updated to include Voting functionality.
 
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
@@ -25,7 +25,6 @@ function ChallengeDetails({ user }) {
     const fetchData = async () => {
       try {
         const [chalRes, subRes] = await Promise.all([
-          // Gemini: Changed axios.get to api.get
           api.get(`/api/challenges/${id}`),
           api.get(`/api/challenges/${id}/submissions`),
         ]);
@@ -67,7 +66,6 @@ function ChallengeDetails({ user }) {
     }
 
     try {
-      // Gemini: Changed axios.post to api.post
       await api.post(`/api/challenges/${id}/submit`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -79,14 +77,32 @@ function ChallengeDetails({ user }) {
       setIsSubmitting(false);
       alert("Submission successful!");
 
-      // Refresh the list to show the new item
-      // Gemini: Changed axios.get to api.get
       const newSubRes = await api.get(`/api/challenges/${id}/submissions`);
       setSubmissions(newSubRes.data);
     } catch (error) {
       console.error("Submission error:", error);
       alert("Failed to submit. Please try again.");
       setIsSubmitting(false);
+    }
+  };
+
+  // Gemini: NEW Vote Handler
+  const handleVote = async (submissionId) => {
+    if (!user) return alert("Please log in to vote!");
+
+    try {
+      await api.post(`/api/submissions/${submissionId}/vote`);
+
+      // Optimistic Update: Increment vote count locally
+      setSubmissions((prev) =>
+        prev.map((sub) =>
+          sub.id === submissionId ? { ...sub, votes: sub.votes + 1 } : sub
+        )
+      );
+      alert("Vote recorded!");
+    } catch (error) {
+      const msg = error.response?.data?.error || "Failed to vote.";
+      alert(msg);
     }
   };
 
@@ -101,9 +117,7 @@ function ChallengeDetails({ user }) {
     }
 
     try {
-      // Gemini: Changed axios.delete to api.delete
       await api.delete(`/api/submissions/${submissionId}`);
-      // Remove the item from the UI immediately
       setSubmissions(submissions.filter((sub) => sub.id !== submissionId));
     } catch (error) {
       alert("Failed to delete. You might not be authorized.");
@@ -213,7 +227,20 @@ function ChallengeDetails({ user }) {
                   <span className="author">
                     by <strong>{sub.username}</strong>
                   </span>
-                  <span className="votes">👍 {sub.votes}</span>
+
+                  {/* Gemini: Vote Section */}
+                  <div className="vote-section">
+                    <span className="votes">👍 {sub.votes}</span>
+                    {user && (
+                      <button
+                        className="vote-btn"
+                        onClick={() => handleVote(sub.id)}
+                        title="Vote for this submission"
+                      >
+                        Vote
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Admin Controls */}

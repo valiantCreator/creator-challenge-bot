@@ -256,6 +256,42 @@ function startServer(client) {
     }
   });
 
+  // --- VOTE ENDPOINT (NEW) ---
+  app.post("/api/submissions/:id/vote", async (req, res) => {
+    if (!req.session || !req.session.user) {
+      return res.status(401).json({ error: "Must be logged in to vote." });
+    }
+
+    const submissionId = req.params.id;
+    const userId = req.session.user.id;
+
+    try {
+      // 1. Check if user already voted
+      const hasVoted = await challengesService.checkUserVote(
+        client.db,
+        submissionId,
+        userId
+      );
+      if (hasVoted) {
+        return res
+          .status(400)
+          .json({ error: "You have already voted for this submission." });
+      }
+
+      // 2. Add vote
+      await challengesService.addVote(client.db, {
+        submissionId: submissionId,
+        userId: userId,
+        guildId: GUILD_ID,
+      });
+
+      res.json({ success: true, voted: true });
+    } catch (error) {
+      console.error("Vote Error:", error);
+      res.status(500).json({ error: "Failed to record vote." });
+    }
+  });
+
   // --- ADMIN ACTION: DELETE ---
   app.delete("/api/submissions/:id", async (req, res) => {
     if (!req.session || !req.session.user || !req.session.user.isAdmin) {
