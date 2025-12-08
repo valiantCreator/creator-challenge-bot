@@ -8,9 +8,9 @@
     "start": "node src/index.js",
     "dev": "concurrently \"npm run start\" \"npm run client\"",
     "client": "npm run dev --prefix client",
-    "deploy": "node src/deploy-commands.js",
-    "deploy:commands": "node src/deploy-commands.js",
-    "reset:db": "node scripts/reset-db.js",
+    "//": "Gemini: REQUIRED for Render. Installs and builds React before bot starts.",
+    "build": "npm install && npm install --prefix client && npm run build --prefix client",
+    "deploy:commands": "node scripts/deploy-commands.js",
     "test": "vitest"
   },
   "engines": {

@@ -1,6 +1,6 @@
 // src/api.js
 // Purpose: Express web server to serve data to the dashboard frontend.
-// Gemini: Updated to pass user data in Redirect URL (v2.3.0 - The Handoff Fix).
+// Gemini: Updated to "Single Origin" architecture (v3.0.0) - Serving React from Express.
 
 const express = require("express");
 const cors = require("cors");
@@ -30,8 +30,8 @@ function startServer(client) {
   const CLIENT_SECRET = process.env.CLIENT_SECRET;
   const REDIRECT_URI = process.env.REDIRECT_URI;
 
-  // Gemini: New Env Var to secure CORS and Redirects
-  // Ensure no trailing slash on the frontend URL
+  // Gemini: In Single Origin mode, FRONTEND_URL isn't strictly needed for CORS,
+  // but we keep the logic clean.
   const RAW_FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
   const FRONTEND_URL = RAW_FRONTEND_URL.replace(/\/$/, "");
 
@@ -47,6 +47,7 @@ function startServer(client) {
   // --- Middleware ---
 
   // Gemini: Strict CORS policy for credentials
+  // (Less critical in Single Origin, but good practice if local dev is split)
   app.use(
     cors({
       origin: FRONTEND_URL, // Allow only this specific frontend
@@ -63,9 +64,10 @@ function startServer(client) {
       keys: [CLIENT_SECRET || "fallback_secret"],
       maxAge: 24 * 60 * 60 * 1000,
 
-      // Gemini: Cross-Site Cookie Settings
-      secure: true, // REQUIRED: Must be true for sameSite: 'none'
-      sameSite: "none", // REQUIRED: Allows cookie to travel from Bot -> Dashboard
+      // Gemini: Single Origin Cookie Settings
+      // Since API and Frontend are now same-domain, we can use standard settings.
+      secure: true, // Still required for Render (HTTPS)
+      sameSite: "lax", // 'lax' is perfect for same-domain navigation
       httpOnly: true,
     })
   );
@@ -98,8 +100,8 @@ function startServer(client) {
     const code = req.query.code;
 
     if (!code) {
-      // Gemini: Redirect back to frontend on error
-      return res.redirect(`${FRONTEND_URL}/?error=no_code`);
+      // Gemini: Redirect back to root on error
+      return res.redirect(`/?error=no_code`);
     }
 
     try {
@@ -123,7 +125,7 @@ function startServer(client) {
       const tokenData = await tokenResponse.json();
       if (tokenData.error) {
         console.error("OAuth Token Error:", tokenData);
-        return res.redirect(`${FRONTEND_URL}/?error=token_exchange_failed`);
+        return res.redirect(`/?error=token_exchange_failed`);
       }
 
       const [userRes, guildRes] = await Promise.all([
@@ -141,7 +143,7 @@ function startServer(client) {
       const targetGuild = guildsData.find((g) => g.id === GUILD_ID);
 
       if (!targetGuild) {
-        return res.redirect(`${FRONTEND_URL}/?error=not_a_member`);
+        return res.redirect(`/?error=not_a_member`);
       }
 
       const permissions = BigInt(targetGuild.permissions);
@@ -163,12 +165,12 @@ function startServer(client) {
       req.sessionOptions.maxAge = 24 * 60 * 60 * 1000;
 
       // Gemini: CRITICAL FIX - Pass user data in URL for immediate frontend hydration
-      // This ensures the user is logged in even if the cookie takes a moment to settle.
       const userString = encodeURIComponent(JSON.stringify(sessionUser));
-      res.redirect(`${FRONTEND_URL}/?user=${userString}`);
+      // Redirect to root (/) which now serves the React app
+      res.redirect(`/?user=${userString}`);
     } catch (error) {
       console.error("OAuth Callback Error:", error);
-      res.redirect(`${FRONTEND_URL}/?error=server_error`);
+      res.redirect(`/?error=server_error`);
     }
   });
 
@@ -379,9 +381,23 @@ function startServer(client) {
     }
   );
 
+  // --- Gemini: SERVE REACT FRONTEND (FINAL FALLBACK) ---
+  // This must be AFTER all API routes so we don't block them.
+
+  // 1. Serve static files from the 'client/dist' folder
+  const clientDistPath = path.join(__dirname, "../client/dist");
+  app.use(express.static(clientDistPath));
+
+  // 2. Handle React Routing (Wildcard)
+  // If a request comes in for "/dashboard" or "/challenge/5" (and wasn't an API call),
+  // send the index.html so React Router can take over.
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(clientDistPath, "index.html"));
+  });
+
   // --- Start Listening ---
   app.listen(PORT, () => {
-    console.log(`🌐 Web API running on http://localhost:${PORT}`);
+    console.log(`🌐 Web API + Frontend running on http://localhost:${PORT}`);
   });
 }
 
