@@ -346,6 +346,21 @@ function startServer(client) {
 
         const discordMessage = await targetChannel.send(messagePayload);
 
+        // Gemini: AUTO-REACT FIX
+        // Fetch the configured vote emoji and react to the message immediately
+        try {
+          const settings = await settingsService.getGuildSettings(
+            client.db,
+            GUILD_ID
+          );
+          await discordMessage.react(settings.vote_emoji);
+        } catch (reactError) {
+          console.error(
+            "Failed to auto-react to dashboard submission:",
+            reactError
+          );
+        }
+
         // 4. Record in Database
         let attachmentUrl = null;
         if (discordMessage.attachments.size > 0) {
