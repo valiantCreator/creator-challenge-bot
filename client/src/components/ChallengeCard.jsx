@@ -1,5 +1,6 @@
 // client/src/components/ChallengeCard.jsx
 // Purpose: A reusable card component to display a single challenge summary.
+// Gemini: Updated to display End Date / Recurring status.
 
 import { Link } from "react-router-dom";
 import "./ChallengeCard.css";
@@ -14,6 +15,20 @@ function ChallengeCard({ challenge }) {
     return "badge-blue";
   };
 
+  // Gemini: Format the deadline or show recurring status
+  const formatDeadline = () => {
+    if (challenge.ends_at) {
+      // Use the raw timestamp (already in UTC from backend if fixed there,
+      // or raw milliseconds). toLocaleDateString handles local conversion.
+      const date = new Date(parseInt(challenge.ends_at));
+      return `📅 Ends: ${date.toLocaleDateString()}`;
+    }
+    if (challenge.cron_schedule) {
+      return "🔄 Recurring";
+    }
+    return null;
+  };
+
   return (
     <div className="challenge-card">
       <div className="card-header">
@@ -25,6 +40,11 @@ function ChallengeCard({ challenge }) {
 
       <h3>{challenge.title}</h3>
       <p className="description">{challenge.description}</p>
+
+      {/* Gemini: Display Date info */}
+      <div className="card-meta">
+        <span className="deadline-text">{formatDeadline()}</span>
+      </div>
 
       <div className="card-footer">
         {/* This link will take us to the details page later */}

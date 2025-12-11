@@ -37,8 +37,23 @@
   color: var(--text-secondary);
   font-size: 0.9rem;
   line-height: 1.5;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem; /* Gemini: Reduced slightly since we have meta info now */
   flex-grow: 1; /* Pushes the footer down */
+}
+
+/* Gemini: New styles for Date/Meta section */
+.card-meta {
+  margin-bottom: 1.25rem; /* The "comfortable space" before the button */
+  font-size: 0.85rem;
+  color: #b9bbbe;
+  display: flex;
+  align-items: center;
+}
+
+.deadline-text {
+  background-color: rgba(0, 0, 0, 0.2);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
 }
 
 .view-btn {

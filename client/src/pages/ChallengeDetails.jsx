@@ -144,6 +144,16 @@ function ChallengeDetails({ user }) {
         <div className="meta-info">
           <span className="badge">{challenge.type}</span>
           <span>{submissions.length} Submissions</span>
+          {/* Gemini: Added Date Display */}
+          {challenge.ends_at && (
+            <span className="deadline-badge">
+              📅 Ends{" "}
+              {new Date(parseInt(challenge.ends_at)).toLocaleDateString()}
+            </span>
+          )}
+          {challenge.cron_schedule && (
+            <span className="deadline-badge">🔄 Recurring</span>
+          )}
         </div>
       </header>
 
