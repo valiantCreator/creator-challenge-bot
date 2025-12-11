@@ -2,21 +2,47 @@
 .page-header {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  justify-content: space-between; /* Pushes button to the right */
   margin-bottom: 2rem;
+  border-bottom: 1px solid #2f3136; /* Optional: adds subtle separation */
+  padding-bottom: 1rem;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 
 .page-header h2 {
   font-size: 1.5rem;
   margin: 0;
+  color: #fff;
 }
 
 .count-badge {
-  background-color: var(--accent);
+  background-color: #5865f2; /* Discord Blurple */
+  color: white;
   padding: 0.2rem 0.6rem;
   border-radius: 6px;
   font-size: 0.8rem;
   font-weight: bold;
+}
+
+.new-challenge-btn {
+  background-color: #3ba55c; /* Discord Green */
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.new-challenge-btn:hover {
+  background-color: #2d7d46;
 }
 
 .challenges-grid {
@@ -28,5 +54,5 @@
 .loading {
   text-align: center;
   margin-top: 4rem;
-  color: var(--text-secondary);
+  color: #b9bbbe;
 }

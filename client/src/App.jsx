@@ -1,10 +1,6 @@
 // client/src/App.jsx
-// Purpose: Main Router configuration & Authentication Wrapper.
-// Gemini: Updated to use 'api' helper and handle cross-domain auth redirects.
-
 import { useState, useEffect } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-// Gemini: Import our configured API helper instead of raw axios
+import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import api from "./api";
 import Dashboard from "./pages/Dashboard";
 import ChallengeDetails from "./pages/ChallengeDetails";
@@ -16,7 +12,6 @@ function App() {
 
   useEffect(() => {
     const initializeAuth = async () => {
-      // 1. Check if the Backend sent user data in the URL (Redirect method)
       const params = new URLSearchParams(window.location.search);
       const userParam = params.get("user");
 
@@ -24,22 +19,18 @@ function App() {
         try {
           const userData = JSON.parse(decodeURIComponent(userParam));
           setUser(userData);
-          // Clean the URL immediately
           window.history.replaceState({}, document.title, "/");
           setLoadingUser(false);
-          return; // We found the user, no need to check API
+          return;
         } catch (err) {
           console.error("Failed to parse user url param:", err);
         }
       }
 
-      // 2. If no URL param, check the Session Cookie (Persistence method)
       try {
-        // Gemini: Use 'api.get' so it hits the correct backend URL
         const response = await api.get("/api/auth/me");
         setUser(response.data);
       } catch (err) {
-        // Not logged in (401), or cookie expired
         setUser(null);
       } finally {
         setLoadingUser(false);
@@ -50,15 +41,12 @@ function App() {
   }, []);
 
   const handleLogin = () => {
-    // Gemini: Manually construct the full URL for the browser redirect.
-    // 'api.get' is for data; window.location needs the full string.
     const baseURL = import.meta.env.VITE_API_URL || "";
     window.location.href = `${baseURL}/api/auth/login`;
   };
 
   const handleLogout = async () => {
     try {
-      // Gemini: Use 'api.post'
       await api.post("/api/auth/logout");
     } catch (e) {
       console.error("Logout error", e);
@@ -76,12 +64,15 @@ function App() {
       <div className="app-container">
         <header className="main-header">
           <div className="header-content">
-            <h1>🤖 Creator Challenge Bot</h1>
+            <Link to="/" className="logo-link">
+              <h1>🤖 Creator Challenge Bot</h1>
+            </Link>
 
             <div className="auth-section">
               {user ? (
                 <div className="user-profile">
                   {user.isAdmin && <span className="admin-badge">ADMIN</span>}
+                  {/* Gemini: Removed the + New Challenge link from here */}
 
                   {user.avatar && (
                     <img
@@ -111,6 +102,7 @@ function App() {
               path="/challenge/:id"
               element={<ChallengeDetails user={user} />}
             />
+            {/* Gemini: Removed /admin/create route */}
           </Routes>
         </main>
       </div>

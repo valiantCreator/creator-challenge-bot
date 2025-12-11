@@ -1,6 +1,6 @@
 // src/api.js
 // Purpose: Express web server to serve data to the dashboard frontend.
-// Gemini: Updated to "Single Origin" architecture (v3.0.0) - Serving React from Express.
+// Gemini: Updated to use Discord Native Timestamps for timezone accuracy.
 
 const express = require("express");
 const cors = require("cors");
@@ -13,7 +13,13 @@ const challengesService = require("./services/challenges");
 const pointsService = require("./services/points");
 const settingsService = require("./services/settings");
 // Gemini: Added EmbedBuilder for structured messages
-const { PermissionFlagsBits, EmbedBuilder } = require("discord.js");
+const {
+  PermissionFlagsBits,
+  EmbedBuilder,
+  ChannelType,
+} = require("discord.js");
+const { scheduleChallenge } = require("./services/scheduler");
+const cron = require("node-cron");
 
 // Configure Multer (Temporary storage for uploads)
 const upload = multer({ dest: "uploads/" });
@@ -35,6 +41,9 @@ function startServer(client) {
   // but we keep the logic clean.
   const RAW_FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
   const FRONTEND_URL = RAW_FRONTEND_URL.replace(/\/$/, "");
+
+  // Gemini: Determine environment for Cookie Security
+  const isProduction = process.env.NODE_ENV === "production";
 
   if (!GUILD_ID) {
     console.warn("⚠️ [API] GUILD_ID not found in .env.");
@@ -65,9 +74,10 @@ function startServer(client) {
       keys: [CLIENT_SECRET || "fallback_secret"],
       maxAge: 24 * 60 * 60 * 1000,
 
-      // Gemini: Single Origin Cookie Settings
-      // Since API and Frontend are now same-domain, we can use standard settings.
-      secure: true, // Still required for Render (HTTPS)
+      // Gemini: Dynamic Cookie Settings
+      // secure: true required for Render (HTTPS).
+      // secure: false required for Localhost (HTTP).
+      secure: isProduction,
       sameSite: "lax", // 'lax' is perfect for same-domain navigation
       httpOnly: true,
     })
@@ -81,6 +91,7 @@ function startServer(client) {
       uptime: process.uptime(),
       guildId: GUILD_ID,
       user: req.session.user ? req.session.user.username : "guest",
+      isProduction: isProduction, // Helpful for debugging
     });
   });
 
@@ -365,6 +376,186 @@ function startServer(client) {
     } catch (error) {
       console.error("Delete Error:", error);
       res.status(500).json({ error: "Database error" });
+    }
+  });
+
+  // --- ADMIN ROUTES (PATH B) ---
+
+  // 1. Get Available Channels (For Dropdown)
+  app.get("/api/admin/channels", async (req, res) => {
+    // Auth Check
+    if (!req.session || !req.session.user || !req.session.user.isAdmin) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const guild = client.guilds.cache.get(GUILD_ID);
+      if (!guild) return res.status(500).json({ error: "Guild not found" });
+
+      // Filter for text channels where the bot can send messages
+      const channels = guild.channels.cache
+        .filter(
+          (c) =>
+            c.type === ChannelType.GuildText &&
+            c.permissionsFor(client.user).has(PermissionFlagsBits.SendMessages)
+        )
+        .map((c) => ({ id: c.id, name: c.name }));
+
+      res.json(channels);
+    } catch (error) {
+      console.error("[API Error] /api/admin/channels:", error);
+      res.status(500).json({ error: "Failed to fetch channels" });
+    }
+  });
+
+  // 2. Create Challenge (Matches Slash Command Logic)
+  app.post("/api/admin/challenges", async (req, res) => {
+    // Auth Check
+    if (!req.session || !req.session.user || !req.session.user.isAdmin) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    const {
+      title,
+      description,
+      type,
+      channelId,
+      schedule, // cron string
+      endsAt, // timestamp or ISO string (from date picker)
+    } = req.body;
+
+    if (!title || !description || !type || !channelId) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    try {
+      // Logic Path 1: Recurring Challenge (Template)
+      if (schedule) {
+        if (!cron.validate(schedule)) {
+          return res.status(400).json({ error: "Invalid Cron Schedule" });
+        }
+
+        const newTemplateId = await challengesService.createChallenge(
+          client.db,
+          {
+            guildId: GUILD_ID,
+            title,
+            description,
+            type,
+            createdBy: req.session.user.id,
+            channelId,
+            isTemplate: 1,
+            cronSchedule: schedule,
+          }
+        );
+
+        const newTemplate = await challengesService.getChallengeById(
+          client.db,
+          newTemplateId
+        );
+        if (newTemplate) {
+          scheduleChallenge(client.db, newTemplate, client);
+        }
+
+        return res.json({ success: true, challengeId: newTemplateId });
+      }
+
+      // Logic Path 2: One-Time Challenge
+      const postChannel = client.channels.cache.get(channelId);
+      if (!postChannel) {
+        return res.status(404).json({ error: "Channel not found in cache." });
+      }
+
+      // Gemini: TIMEZONE FIX (BULLETPROOF)
+      // 1. Manually parse "YYYY-MM-DD" to avoid UTC shifting issues.
+      // 2. Create a timestamp for 23:59:59 UTC on that specific date.
+      let finalEndsAt = null;
+      if (endsAt) {
+        const [year, month, day] = endsAt.split("-").map(Number);
+        // Date.UTC(year, monthIndex, day, hours, minutes, seconds)
+        // monthIndex is 0-based (0 = Jan, 11 = Dec)
+        finalEndsAt = Date.UTC(year, month - 1, day, 23, 59, 59);
+      }
+
+      const newChallengeId = await challengesService.createChallenge(
+        client.db,
+        {
+          guildId: GUILD_ID,
+          title,
+          description,
+          type,
+          createdBy: req.session.user.id,
+          channelId,
+          endsAt: finalEndsAt, // Use the fixed timestamp
+        }
+      );
+
+      // Create Embed
+      const challengeEmbed = new EmbedBuilder()
+        .setColor("#0099ff")
+        .setTitle(`🏁 New Challenge: ${title}`)
+        .setDescription(description)
+        .addFields(
+          {
+            name: "Challenge ID",
+            value: `\`${newChallengeId}\``,
+            inline: true,
+          },
+          { name: "Type", value: type, inline: true },
+          {
+            name: "How to participate",
+            value: `Use the \`/submit challenge_id:${newChallengeId}\` command in this thread, or submit via the Dashboard!`,
+          }
+        )
+        .setFooter({
+          text: "Community members can vote with 👍 to award points!",
+        })
+        .setTimestamp();
+
+      if (finalEndsAt) {
+        // Gemini: Use Discord's Native Timestamp formatting <t:TIMESTAMP:D>
+        // This forces the CLIENT (User's App) to render the date in THEIR local time.
+        // / 1000 to convert ms to seconds.
+        const discordTimestamp = Math.floor(finalEndsAt / 1000);
+        challengeEmbed.addFields({
+          name: "Deadline",
+          value: `<t:${discordTimestamp}:D> (<t:${discordTimestamp}:R>)`,
+          // Displays as: "December 11, 2025 (in 5 days)"
+        });
+      }
+
+      const challengeMessage = await postChannel.send({
+        embeds: [challengeEmbed],
+      });
+
+      const thread = await challengeMessage.startThread({
+        name: `Submissions for Challenge #${newChallengeId}: ${title}`,
+        autoArchiveDuration: 1440,
+      });
+
+      // Update DB with message/thread IDs
+      const updated = await challengesService.attachMessageAndThread(
+        client.db,
+        {
+          challengeId: newChallengeId,
+          messageId: challengeMessage.id,
+          threadId: thread.id,
+        }
+      );
+
+      if (!updated) {
+        // Rollback attempt (delete thread/message)
+        await thread.delete().catch(console.error);
+        await challengeMessage.delete().catch(console.error);
+        return res
+          .status(500)
+          .json({ error: "Database error linking thread." });
+      }
+
+      res.json({ success: true, challengeId: newChallengeId });
+    } catch (error) {
+      console.error("Error creating challenge via API:", error);
+      res.status(500).json({ error: "Internal Server Error" });
     }
   });
 

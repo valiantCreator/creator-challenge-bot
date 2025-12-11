@@ -1,6 +1,6 @@
 // src/services/challenges.js
 // Purpose: Contains all database logic for challenges, submissions, and badges.
-// Gemini: Added logic for Dashboard Voting (addVote, removeVote, checkUserVote).
+// Gemini: Updated createChallenge to support 'endsAt' for the Admin Dashboard date picker.
 
 // --- Challenge Functions ---
 
@@ -21,12 +21,15 @@ async function createChallenge(
     channelId,
     isTemplate = 0,
     cronSchedule = null,
+    startsAt = null,
+    endsAt = null,
   }
 ) {
   // Added RETURNING id to get the new row ID immediately
+  // Gemini: Added starts_at and ends_at columns
   const sql = `
-    INSERT INTO challenges (guild_id, title, description, type, created_by, channel_id, is_active, is_template, cron_schedule)
-    VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8)
+    INSERT INTO challenges (guild_id, title, description, type, created_by, channel_id, is_active, is_template, cron_schedule, starts_at, ends_at)
+    VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8, $9, $10)
     RETURNING id
   `;
 
@@ -39,6 +42,8 @@ async function createChallenge(
     channelId || null,
     isTemplate,
     cronSchedule,
+    startsAt,
+    endsAt,
   ]);
 
   return info.lastInsertRowid;

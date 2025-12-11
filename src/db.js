@@ -1,6 +1,6 @@
 // src/db.js
 // Purpose: Database connection and schema management for PostgreSQL (Supabase).
-// Gemini: Updated with 'submission_votes' table for Dashboard voting (v3.3.0).
+// Gemini: Added safety handler for pool errors to prevent process crashes.
 
 const path = require("path");
 // Explicitly point to the .env file in the root directory
@@ -26,6 +26,14 @@ const pool = new Pool({
   ssl: {
     rejectUnauthorized: false, // Required for Supabase/Render connections
   },
+});
+
+// --- Gemini: CRITICAL FIX ---
+// Add an error event listener to the pool.
+// Without this, any network error from the idle clients will crash the entire Node process.
+pool.on("error", (err, client) => {
+  console.error("⚠️ Unexpected error on idle database client", err);
+  // Do NOT exit the process here. Let it recover.
 });
 
 // 2. Helper to query the database
