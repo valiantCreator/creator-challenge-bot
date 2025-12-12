@@ -17,12 +17,14 @@ const {
   PermissionFlagsBits,
   EmbedBuilder,
   ChannelType,
+  AttachmentBuilder, // Gemini: Added for memory uploads
 } = require("discord.js");
 const { scheduleChallenge } = require("./services/scheduler");
 const cron = require("node-cron");
 
 // Configure Multer (Temporary storage for uploads)
-const upload = multer({ dest: "uploads/" });
+// Gemini: Switched to memoryStorage to avoid Windows file locks & allow "Double-Tap" hosting
+const upload = multer({ storage: multer.memoryStorage() });
 
 /**
  * Starts the Express API server.
@@ -607,7 +609,32 @@ function startServer(client) {
           }
         }
 
-        // Gemini: Build Embed to match Slash Command style
+        // Gemini: "Double-Tap" Logic
+        // Step 1: Send the file alone to force Discord to host it.
+        const filesToSend = [];
+        if (file) {
+          const safeName = `submission_${Date.now()}_${file.originalname.replace(
+            /[^a-zA-Z0-9.]/g,
+            ""
+          )}`;
+          const attachment = new AttachmentBuilder(file.buffer, {
+            name: safeName,
+          });
+          filesToSend.push(attachment);
+        }
+
+        // Send Initial Message (Content + Files only)
+        const discordMessage = await targetChannel.send({
+          content: `**Submission from ${user.username}**`,
+          files: filesToSend,
+        });
+
+        // Step 2: Capture URL and Build Embed
+        let attachmentUrl = null;
+        if (discordMessage.attachments.size > 0) {
+          attachmentUrl = discordMessage.attachments.first().url;
+        }
+
         const embed = new EmbedBuilder()
           .setAuthor({
             name: `Submission from ${user.username}`,
@@ -616,48 +643,28 @@ function startServer(client) {
               : undefined,
           })
           .setTitle(`Entry for: #${challenge.id} — ${challenge.title}`)
-          .setColor("#0099ff") // You can change this color to match your bot
+          .setColor("#0099ff")
           .setTimestamp();
 
         if (caption) embed.addFields({ name: "📝 Notes", value: caption });
         if (link) embed.addFields({ name: "🔗 Link", value: link });
 
-        // Initial footer (will update with ID later)
-        embed.setFooter({ text: `Vote with ${settings.vote_emoji}` });
-
-        const messagePayload = {
-          embeds: [embed],
-          files: [],
-        };
-
-        if (file) {
-          messagePayload.files.push({
-            attachment: file.path,
-            name: file.originalname,
-          });
-          // Attach the uploaded image to the embed
-          embed.setImage(`attachment://${file.originalname}`);
+        // Use the captured URL if we have one
+        if (attachmentUrl) {
+          embed.setImage(attachmentUrl);
         }
 
-        const discordMessage = await targetChannel.send(messagePayload);
+        // Step 3: Edit the message to show the Embed
+        await discordMessage.edit({ content: null, embeds: [embed] });
 
         // Gemini: AUTO-REACT FIX
-        // Fetch the configured vote emoji and react to the message immediately
         try {
           await discordMessage.react(settings.vote_emoji);
         } catch (reactError) {
-          console.error(
-            "Failed to auto-react to dashboard submission:",
-            reactError
-          );
+          console.error("Failed to auto-react:", reactError);
         }
 
         // 5. Record in Database
-        let attachmentUrl = null;
-        if (discordMessage.attachments.size > 0) {
-          attachmentUrl = discordMessage.attachments.first().url;
-        }
-
         const submissionId = await challengesService.recordSubmission(
           client.db,
           {
@@ -682,11 +689,6 @@ function startServer(client) {
           await discordMessage.edit({ embeds: [embed] });
         } catch (editError) {
           console.warn("Could not update footer with ID:", editError);
-        }
-
-        // 7. Cleanup
-        if (file) {
-          fs.unlinkSync(file.path);
         }
 
         res.json({ success: true, submissionId });
