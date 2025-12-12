@@ -22,10 +22,38 @@
   margin-bottom: 1rem;
 }
 
+/* Gemini: New wrapper to keep the Delete Button next to the ID */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .challenge-id {
   color: var(--text-secondary);
   font-size: 0.875rem;
   font-family: monospace;
+}
+
+/* Gemini: Delete Button Styles */
+.delete-icon-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s, color 0.2s;
+  line-height: 1;
+  color: var(--text-secondary); /* Default to subtle gray */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delete-icon-btn:hover {
+  background-color: rgba(239, 68, 68, 0.2); /* Red tint bg */
+  color: #fca5a5; /* Light red text */
 }
 
 .challenge-card h3 {
@@ -37,13 +65,13 @@
   color: var(--text-secondary);
   font-size: 0.9rem;
   line-height: 1.5;
-  margin-bottom: 1rem; /* Gemini: Reduced slightly since we have meta info now */
+  margin-bottom: 1rem;
   flex-grow: 1; /* Pushes the footer down */
 }
 
-/* Gemini: New styles for Date/Meta section */
+/* Date/Meta section */
 .card-meta {
-  margin-bottom: 1.25rem; /* The "comfortable space" before the button */
+  margin-bottom: 1.25rem;
   font-size: 0.85rem;
   color: #b9bbbe;
   display: flex;

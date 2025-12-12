@@ -1,6 +1,6 @@
 // src/commands/pick-winner.js
 // Purpose: Admin command to select a winner for a challenge and award bonus points.
-// Gemini: Updated to use Async/Await for PostgreSQL migration.
+// Gemini: Updated to link points to challenge_id.
 
 const {
   SlashCommandBuilder,
@@ -59,7 +59,6 @@ module.exports = {
       const announcementText = interaction.options.getString("announcement");
 
       // --- Validation ---
-      // Gemini: Added await
       const challenge = await challengesService.getChallengeById(
         db,
         challengeId
@@ -86,15 +85,15 @@ module.exports = {
         });
       }
 
-      // --- Action 1: Award Points ---
-      // This was already async in previous versions, but good to confirm
+      // --- Action 1: Award Points (LINKED TO CHALLENGE) ---
       await pointsService.addPoints(
         db,
         interaction.guildId,
         winner.id,
         bonusPoints,
         "WINNER_BONUS",
-        interaction.client
+        interaction.client,
+        challengeId // Gemini: Added tracking!
       );
 
       // --- Action 2: Announce Winner in Thread ---
@@ -167,11 +166,9 @@ module.exports = {
           "Could not edit original challenge message to announce winner:",
           editError
         );
-        // Don't stop the whole process if this fails, just log it.
       }
 
       // --- Action 4: Close Challenge and Archive Thread ---
-      // Gemini: Added await
       await challengesService.closeChallenge(db, challengeId);
 
       if (thread) {

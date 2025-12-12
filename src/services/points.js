@@ -1,6 +1,6 @@
 // src/services/points.js
 // Purpose: Encapsulates points logic, leaderboard queries, and badge awards.
-// Gemini: Refactored for PostgreSQL (Async/Await, Date handling).
+// Gemini: Added revokeChallengePoints for the Delete Challenge feature.
 
 /**
  * Gets a user's current point total.
@@ -37,7 +37,6 @@ async function checkAndAwardBadges(
     const member = await guild.members.fetch(userId);
     if (!member) return;
 
-    // Gemini: Must await this now as it's an async DB call
     const badgeRoles = await require("./challenges").getBadgeRoles(db, guildId);
     if (badgeRoles.length === 0) return;
 
@@ -67,17 +66,25 @@ async function checkAndAwardBadges(
  * @param {number} amount
  * @param {string} reason The reason for the point change.
  * @param {import('discord.js').Client} client The Discord client instance.
+ * @param {number|null} [challengeId=null] (Optional) ID of the challenge this point is related to.
  */
-async function addPoints(db, guildId, userId, amount, reason, client) {
+async function addPoints(
+  db,
+  guildId,
+  userId,
+  amount,
+  reason,
+  client,
+  challengeId = null
+) {
   // 1. Insert into Ledger
   const logSql = `
-    INSERT INTO point_logs (guild_id, user_id, points_awarded, reason) 
-    VALUES ($1, $2, $3, $4)
+    INSERT INTO point_logs (guild_id, user_id, points_awarded, reason, challenge_id) 
+    VALUES ($1, $2, $3, $4, $5)
   `;
-  await db.run(logSql, [guildId, userId, amount, reason]);
+  await db.run(logSql, [guildId, userId, amount, reason, challengeId]);
 
   // 2. Upsert into Cache
-  // Gemini: Postgres specific ON CONFLICT syntax
   const upsertSql = `
     INSERT INTO points (guild_id, user_id, points)
     VALUES ($1, $2, $3)
@@ -92,13 +99,49 @@ async function addPoints(db, guildId, userId, amount, reason, client) {
 }
 
 /**
+ * Revokes all points associated with a specific challenge.
+ * Used when an admin deletes a challenge and checks "Revoke Points".
+ * @param {object} db The database wrapper.
+ * @param {number} challengeId The ID of the challenge being deleted.
+ */
+async function revokeChallengePoints(db, challengeId) {
+  // 1. Calculate points to revoke per user
+  // We sum up all positive/negative points linked to this challenge
+  const sqlSum = `
+    SELECT user_id, SUM(points_awarded) as total
+    FROM point_logs
+    WHERE challenge_id = $1
+    GROUP BY user_id
+  `;
+  const records = await db.all(sqlSum, [challengeId]);
+
+  // 2. Subtract from main balance
+  for (const rec of records) {
+    // If they earned 50 points, we subtract 50. If they lost points, we add them back (subtracting negative).
+    const sqlUpdate = `
+      UPDATE points
+      SET points = points - $1
+      WHERE user_id = $2
+    `;
+    await db.run(sqlUpdate, [rec.total, rec.user_id]);
+  }
+
+  // 3. Delete the logs so they don't count towards future "All Time" calcs
+  const sqlDelete = `DELETE FROM point_logs WHERE challenge_id = $1`;
+  await db.run(sqlDelete, [challengeId]);
+
+  console.log(
+    `[Points] Revoked points for challenge #${challengeId} from ${records.length} users.`
+  );
+}
+
+/**
  * Recalculates points using guild settings for accuracy.
  * @param {object} db The database wrapper.
  * @param {string} userId
  * @param {string} guildId
  */
 async function recalculateUserPoints(db, userId, guildId) {
-  // Gemini: Await these service calls
   const settings = await require("./settings").getGuildSettings(db, guildId);
   const submissions = await require("./challenges").getSubmissionsByUser(
     db,
@@ -136,7 +179,6 @@ async function getLeaderboard(db, guildId, limit = 10, period = "all-time") {
     return await db.all(sql, [guildId, limit]);
   }
 
-  // Calculate Date for Postgres
   let days;
   if (period === "weekly") {
     days = 7;
@@ -146,7 +188,6 @@ async function getLeaderboard(db, guildId, limit = 10, period = "all-time") {
     return getLeaderboard(db, guildId, limit, "all-time");
   }
 
-  // Gemini: Create a Javascript Date object for the comparison
   const sinceDate = new Date();
   sinceDate.setDate(sinceDate.getDate() - days);
 
@@ -167,8 +208,6 @@ async function getLeaderboard(db, guildId, limit = 10, period = "all-time") {
     LIMIT $3
   `;
 
-  // Note: 'points' alias in ORDER BY works in Postgres, but standard SQL usually requires the aggregate in ORDER BY.
-  // Postgres allows alias usage in ORDER BY.
   return await db.all(sql, [guildId, sinceDate, limit]);
 }
 
@@ -198,6 +237,7 @@ async function getUserRank(db, guildId, userId) {
 
 module.exports = {
   addPoints,
+  revokeChallengePoints, // Exported new function
   recalculateUserPoints,
   getLeaderboard,
   getUserPoints,

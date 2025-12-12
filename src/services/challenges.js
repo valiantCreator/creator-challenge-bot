@@ -1,6 +1,6 @@
 // src/services/challenges.js
 // Purpose: Contains all database logic for challenges, submissions, and badges.
-// Gemini: Updated createChallenge to support 'endsAt' for the Admin Dashboard date picker.
+// Gemini: Added deleteChallenge function for admin cleanup.
 
 // --- Challenge Functions ---
 
@@ -25,8 +25,6 @@ async function createChallenge(
     endsAt = null,
   }
 ) {
-  // Added RETURNING id to get the new row ID immediately
-  // Gemini: Added starts_at and ends_at columns
   const sql = `
     INSERT INTO challenges (guild_id, title, description, type, created_by, channel_id, is_active, is_template, cron_schedule, starts_at, ends_at)
     VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8, $9, $10)
@@ -112,13 +110,32 @@ async function closeChallenge(db, challengeId) {
 // --- Submission Functions ---
 
 /**
- * Records a new submission in the database.
+ * Permanently deletes a challenge and all its related submissions/votes.
  * @param {object} db The database wrapper.
- * @param {object} submissionData The data for the submission.
- * @returns {Promise<number>} The ID of the new submission.
+ * @param {number} challengeId The ID of the challenge to delete.
  */
+async function deleteChallenge(db, challengeId) {
+  // 1. Delete submission votes (Linked to submissions)
+  await db.run(
+    `DELETE FROM submission_votes WHERE submission_id IN (SELECT id FROM submissions WHERE challenge_id = $1)`,
+    [challengeId]
+  );
+
+  // 2. Delete submissions
+  await db.run(`DELETE FROM submissions WHERE challenge_id = $1`, [
+    challengeId,
+  ]);
+
+  // 3. Delete the challenge
+  const info = await db.run(`DELETE FROM challenges WHERE id = $1`, [
+    challengeId,
+  ]);
+  return info.changes > 0;
+}
+
+// --- Submission Functions ---
+
 async function recordSubmission(db, submissionData) {
-  // Converted named params (@name) to positional params ($1)
   const sql = `
     INSERT INTO submissions (challenge_id, guild_id, user_id, username, channel_id, message_id, thread_id, content_text, attachment_url, link_url)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -273,7 +290,7 @@ async function updateSubmission(db, submissionId, newData) {
   return await getSubmissionById(db, submissionId);
 }
 
-// --- Gemini: NEW Voting Functions for Dashboard ---
+// --- Voting Functions ---
 
 /**
  * Checks if a user has already voted for a submission.
@@ -352,6 +369,7 @@ module.exports = {
   getAllRecurringChallenges,
   getChallengeById,
   closeChallenge,
+  deleteChallenge, // Exported new function
   recordSubmission,
   getSubmissionById,
   deleteSubmission,
@@ -364,7 +382,6 @@ module.exports = {
   removeBadgeRole,
   getSubmissionsByUserId,
   getSubmissionsByChallengeId,
-  // Export new voting functions
   checkUserVote,
   addVote,
   removeVote,

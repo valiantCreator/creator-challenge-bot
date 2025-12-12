@@ -1,6 +1,6 @@
 // src/events/messageReactionAdd.js
 // Purpose: Event handler for when a user ADDS a reaction to a message.
-// Gemini: Updated to use Async/Await for PostgreSQL migration.
+// Gemini: Updated to link vote points to the challenge_id.
 
 const { Events } = require("discord.js");
 const challengesService = require("../services/challenges");
@@ -24,16 +24,14 @@ module.exports = {
 
     const db = reaction.client.db;
     try {
-      // Gemini: Added await
       const settings = await settingsService.getGuildSettings(
         db,
         reaction.message.guildId
       );
 
-      // --- UPDATED: Check against the dynamic vote_emoji ---
+      // Check against dynamic vote_emoji
       if (reaction.emoji.name !== settings.vote_emoji) return;
 
-      // Gemini: Added await
       const submission = await challengesService.getSubmissionByMessageId(
         db,
         reaction.message.id
@@ -60,10 +58,10 @@ module.exports = {
         submission.user_id,
         settings.points_per_vote,
         "VOTE_RECEIVED",
-        reaction.client
+        reaction.client,
+        submission.challenge_id // Gemini: Added tracking!
       );
 
-      // Gemini: Added await
       await challengesService.incrementSubmissionVotes(db, submission.id);
       console.log(
         `[Vote] User ${user.username} voted for submission ${submission.id}.`

@@ -561,7 +561,72 @@ function startServer(client) {
     }
   });
 
-  // --- USER ACTION: SUBMIT (NEW) ---
+  // --- Gemini: NEW DELETE CHALLENGE ROUTE ---
+  // Deletes challenge + submissions + votes + (optional) discord thread + (optional) points
+  app.delete("/api/admin/challenges/:id", async (req, res) => {
+    if (!req.session || !req.session.user || !req.session.user.isAdmin) {
+      return res.status(403).json({ error: "Unauthorized: Admins only." });
+    }
+
+    const challengeId = req.params.id;
+    // Flags passed from the frontend modal
+    const { deleteThread, revokePoints } = req.body;
+
+    try {
+      const db = client.db;
+      // 1. Get Challenge Details
+      const challenge = await challengesService.getChallengeById(
+        db,
+        challengeId
+      );
+      if (!challenge) {
+        return res.status(404).json({ error: "Challenge not found" });
+      }
+
+      // 2. Revoke Points (Optional)
+      // This subtracts points based on the tracking logs we added in Phase 1
+      if (revokePoints) {
+        await pointsService.revokeChallengePoints(db, challengeId);
+      }
+
+      // 3. Delete Discord Thread (Cleanup)
+      // Deleting the thread automatically removes all submission messages inside it.
+      if (deleteThread && challenge.thread_id) {
+        try {
+          const channel = await client.channels.fetch(challenge.channel_id);
+          const thread = await channel.threads.fetch(challenge.thread_id);
+          if (thread) await thread.delete("Admin deleted challenge");
+        } catch (e) {
+          console.warn(
+            "Could not delete thread (may be already gone):",
+            e.message
+          );
+        }
+      }
+
+      // 4. Delete Announcement Message (Cleanup)
+      if (deleteThread && challenge.channel_id && challenge.message_id) {
+        try {
+          const channel = await client.channels.fetch(challenge.channel_id);
+          const msg = await channel.messages.fetch(challenge.message_id);
+          if (msg) await msg.delete();
+        } catch (e) {
+          console.warn("Could not delete announcement msg:", e.message);
+        }
+      }
+
+      // 5. Delete Database Records (The Cascade)
+      // This wipes submissions, votes, and the challenge itself
+      await challengesService.deleteChallenge(db, challengeId);
+
+      res.json({ success: true });
+    } catch (e) {
+      console.error("Delete Challenge Error:", e);
+      res.status(500).json({ error: "Failed to delete challenge" });
+    }
+  });
+
+  // --- USER ACTION: SUBMIT (DOUBLE-TAP FIX) ---
   app.post(
     "/api/challenges/:id/submit",
     upload.single("file"),
@@ -609,10 +674,12 @@ function startServer(client) {
           }
         }
 
-        // Gemini: "Double-Tap" Logic
+        // Gemini: "Double-Tap" Logic (Fixes Ghost Attachments)
         // Step 1: Send the file alone to force Discord to host it.
         const filesToSend = [];
         if (file) {
+          console.log("[API] File Buffer Size:", file.size);
+          // Sanitize filename
           const safeName = `submission_${Date.now()}_${file.originalname.replace(
             /[^a-zA-Z0-9.]/g,
             ""
@@ -624,15 +691,19 @@ function startServer(client) {
         }
 
         // Send Initial Message (Content + Files only)
-        const discordMessage = await targetChannel.send({
+        const msgOptions = {
           content: `**Submission from ${user.username}**`,
           files: filesToSend,
-        });
+        };
+
+        const discordMsg = await targetChannel.send(msgOptions); // variable name: discordMsg
+        console.log("[API] Sent Initial Message ID:", discordMsg.id);
 
         // Step 2: Capture URL and Build Embed
         let attachmentUrl = null;
-        if (discordMessage.attachments.size > 0) {
-          attachmentUrl = discordMessage.attachments.first().url;
+        if (discordMsg.attachments.size > 0) {
+          attachmentUrl = discordMsg.attachments.first().url;
+          console.log("[API] Captured URL:", attachmentUrl);
         }
 
         const embed = new EmbedBuilder()
@@ -643,6 +714,7 @@ function startServer(client) {
               : undefined,
           })
           .setTitle(`Entry for: #${challenge.id} — ${challenge.title}`)
+          .setDescription(caption || "*No caption provided*")
           .setColor("#0099ff")
           .setTimestamp();
 
@@ -655,16 +727,17 @@ function startServer(client) {
         }
 
         // Step 3: Edit the message to show the Embed
-        await discordMessage.edit({ content: null, embeds: [embed] });
+        await discordMsg.edit({ content: null, embeds: [embed] });
 
         // Gemini: AUTO-REACT FIX
         try {
-          await discordMessage.react(settings.vote_emoji);
+          await discordMsg.react(settings.vote_emoji);
         } catch (reactError) {
           console.error("Failed to auto-react:", reactError);
         }
 
         // 5. Record in Database
+        // Gemini: Using discordMsg variable to match the object returned by .send()
         const submissionId = await challengesService.recordSubmission(
           client.db,
           {
@@ -672,9 +745,9 @@ function startServer(client) {
             guild_id: GUILD_ID,
             user_id: user.id,
             username: user.username,
-            channel_id: discordMessage.channelId,
-            message_id: discordMessage.id,
-            thread_id: discordMessage.channelId,
+            channel_id: discordMsg.channelId,
+            message_id: discordMsg.id,
+            thread_id: discordMsg.channelId,
             content_text: caption,
             attachment_url: attachmentUrl,
             link_url: link || null,
@@ -686,7 +759,7 @@ function startServer(client) {
           embed.setFooter({
             text: `Submission ID: ${submissionId} • Vote with ${settings.vote_emoji} • Votes: 0`,
           });
-          await discordMessage.edit({ embeds: [embed] });
+          await discordMsg.edit({ embeds: [embed] });
         } catch (editError) {
           console.warn("Could not update footer with ID:", editError);
         }

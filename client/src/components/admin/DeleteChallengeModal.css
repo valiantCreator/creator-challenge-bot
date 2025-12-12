@@ -1,0 +1,201 @@
+/* client/src/components/admin/DeleteChallengeModal.css */
+
+.delete-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.75); /* Darker backdrop */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px); /* Optional: adds a nice blur effect */
+}
+
+.delete-modal-content {
+  background-color: #1f2937; /* Matches your dashboard dark theme */
+  border: 1px solid #374151;
+  border-radius: 12px;
+  padding: 2rem;
+  width: 90%;
+  max-width: 480px;
+  color: #f3f4f6;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  font-family: inherit;
+}
+
+.delete-modal-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #f87171; /* Warning Red */
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.challenge-summary {
+  background-color: #111827; /* Darker box for emphasis */
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.challenge-summary h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.challenge-summary p {
+  margin: 0.5rem 0 0;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  font-family: monospace;
+}
+
+.warning-text {
+  font-size: 0.95rem;
+  color: #d1d5db;
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+.warning-text strong {
+  color: #fff;
+  font-weight: 600;
+}
+
+/* Checkbox Styling */
+.checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.checkbox-label:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.checkbox-input {
+  margin-top: 0.25rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: #dc2626; /* Red accent for the checkbox */
+}
+
+.checkbox-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.checkbox-title {
+  font-weight: 600;
+  color: #e5e7eb;
+  font-size: 0.95rem;
+}
+
+.checkbox-desc {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  margin-top: 0.2rem;
+}
+
+/* Action Buttons */
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #374151;
+}
+
+.cancel-btn {
+  background-color: transparent;
+  color: #d1d5db;
+  border: 1px solid #4b5563;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancel-btn:hover {
+  background-color: #374151;
+  color: #fff;
+}
+
+.delete-confirm-btn {
+  background-color: #dc2626; /* Red-600 */
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background-color 0.2s;
+}
+
+.delete-confirm-btn:hover {
+  background-color: #b91c1c; /* Red-700 */
+}
+
+.delete-confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Error Message Box */
+.error-msg {
+  background-color: rgba(127, 29, 29, 0.4);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+  padding: 0.75rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+}
+
+/* Loading Spinner Animation */
+.spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid #ffffff;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}

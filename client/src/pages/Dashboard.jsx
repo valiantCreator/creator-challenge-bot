@@ -3,16 +3,20 @@ import { useState, useEffect } from "react";
 import api from "../api";
 import ChallengeCard from "../components/ChallengeCard";
 import CreateChallengeModal from "../components/CreateChallengeModal";
+// Gemini: Import the delete modal
+import DeleteChallengeModal from "../components/admin/DeleteChallengeModal";
 import "./Dashboard.css";
 
 // Gemini: Accepted 'user' prop to check admin status
 function Dashboard({ user }) {
   const [challenges, setChallenges] = useState([]);
   const [loading, setLoading] = useState(true);
-  // Gemini: State for modal visibility
-  const [showModal, setShowModal] = useState(false);
 
-  // Helper to fetch data (used on mount and after creation)
+  // Modal States
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [challengeToDelete, setChallengeToDelete] = useState(null); // Stores challenge obj or null
+
+  // Helper to fetch data
   const fetchChallenges = () => {
     setLoading(true);
     api
@@ -42,11 +46,11 @@ function Dashboard({ user }) {
           <span className="count-badge">{challenges.length} Live</span>
         </div>
 
-        {/* Gemini: Admin Button placed here */}
+        {/* Gemini: Admin Create Button */}
         {user && user.isAdmin && (
           <button
             className="new-challenge-btn"
-            onClick={() => setShowModal(true)}
+            onClick={() => setShowCreateModal(true)}
           >
             + New Challenge
           </button>
@@ -55,17 +59,34 @@ function Dashboard({ user }) {
 
       <div className="challenges-grid">
         {challenges.map((challenge) => (
-          <ChallengeCard key={challenge.id} challenge={challenge} />
+          <ChallengeCard
+            key={challenge.id}
+            challenge={challenge}
+            isAdmin={user?.isAdmin} // Pass admin status
+            onDelete={(ch) => setChallengeToDelete(ch)} // Open delete modal
+          />
         ))}
       </div>
 
-      {/* Gemini: Render Modal if state is true */}
-      {showModal && (
+      {/* Gemini: Create Modal */}
+      {showCreateModal && (
         <CreateChallengeModal
           user={user}
-          onClose={() => setShowModal(false)}
+          onClose={() => setShowCreateModal(false)}
           onSuccess={() => {
             fetchChallenges(); // Refresh the list
+          }}
+        />
+      )}
+
+      {/* Gemini: Delete Modal */}
+      {challengeToDelete && (
+        <DeleteChallengeModal
+          challenge={challengeToDelete}
+          onClose={() => setChallengeToDelete(null)}
+          onSuccess={(deletedId) => {
+            // Optimistic update: remove from list immediately without full refetch
+            setChallenges((prev) => prev.filter((c) => c.id !== deletedId));
           }}
         />
       )}

@@ -1,11 +1,11 @@
 // client/src/components/ChallengeCard.jsx
 // Purpose: A reusable card component to display a single challenge summary.
-// Gemini: Updated to display End Date / Recurring status.
+// Gemini: Updated with Admin Delete Button.
 
 import { Link } from "react-router-dom";
 import "./ChallengeCard.css";
 
-function ChallengeCard({ challenge }) {
+function ChallengeCard({ challenge, isAdmin, onDelete }) {
   // Determine the color of the "Type" badge based on the challenge type
   const getTypeColor = (type) => {
     const t = type.toLowerCase();
@@ -15,7 +15,7 @@ function ChallengeCard({ challenge }) {
     return "badge-blue";
   };
 
-  // Gemini: Format the deadline or show recurring status
+  // Format the deadline or show recurring status
   const formatDeadline = () => {
     if (challenge.ends_at) {
       // Use the raw timestamp (already in UTC from backend if fixed there,
@@ -35,7 +35,23 @@ function ChallengeCard({ challenge }) {
         <span className={`badge ${getTypeColor(challenge.type)}`}>
           {challenge.type}
         </span>
-        <span className="challenge-id">#{challenge.id}</span>
+
+        <div className="header-actions">
+          {/* Gemini: Admin Delete Button */}
+          {isAdmin && (
+            <button
+              className="delete-icon-btn"
+              onClick={(e) => {
+                e.preventDefault(); // Prevent navigation if wrapped in link
+                onDelete(challenge);
+              }}
+              title="Delete Challenge"
+            >
+              🗑️
+            </button>
+          )}
+          <span className="challenge-id">#{challenge.id}</span>
+        </div>
       </div>
 
       <h3>{challenge.title}</h3>
