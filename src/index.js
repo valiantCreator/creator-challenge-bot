@@ -1,6 +1,6 @@
 // src/index.js
 // Main bot entry point.
-// Gemini: Updated to await async initialization tasks (v2.0.0).
+// Gemini: Added robust error handling (Safe Reply + Global Catch) to prevent crashes.
 
 const fs = require("fs");
 const path = require("path");
@@ -14,14 +14,14 @@ const {
 const config = require("./config");
 const { initializeScheduler } = require("./services/scheduler");
 const { db } = require("./db"); // Import the database instance
-// Gemini: Import the API starter function
-const { startServer } = require("./api");
+const { startServer } = require("./api"); // Gemini: Import the API starter function
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.MessageContent, // Gemini: Added (often needed for reading content/captions)
   ],
   partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
@@ -65,23 +65,21 @@ for (const file of eventFiles) {
 }
 
 // --- Client Ready Event ---
-// Gemini: Made async to properly await initialization tasks
 client.once(Events.ClientReady, async (c) => {
   console.log(`✅ Logged in as ${c.user.tag}`);
 
-  // (FIX) Pass the db connection from the client to the scheduler.
+  // Pass the db connection from the client to the scheduler.
   try {
-    // Gemini: Await the scheduler so we know it's ready
     await initializeScheduler(c.db, c);
   } catch (error) {
     console.error("❌ Failed to initialize scheduler:", error);
   }
 
-  // Gemini: Start the Web API Server once the bot is ready
+  // Start the Web API Server once the bot is ready
   startServer(c);
 });
 
-// --- Interaction Handler ---
+// --- Interaction Handler (Robust) ---
 client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   const command = client.commands.get(interaction.commandName);
@@ -91,16 +89,39 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await command.execute(interaction);
   } catch (error) {
     console.error(`Error executing /${interaction.commandName}`, error);
-    const errorMessage = {
-      content: "There was an error while executing this command.",
-      ephemeral: true,
-    };
-    if (interaction.replied || interaction.deferred) {
-      await interaction.followUp(errorMessage);
-    } else {
-      await interaction.reply(errorMessage);
+
+    // Gemini: Double-Safe Error Reporting
+    // If the interaction is dead (Unknown Interaction), trying to reply will throw ANOTHER error.
+    // We wrap this in a try/catch to ensure the bot doesn't crash from the error handler itself.
+    try {
+      const errorMessage = {
+        content: "There was an error while executing this command.",
+        ephemeral: true,
+      };
+
+      if (interaction.replied || interaction.deferred) {
+        await interaction.followUp(errorMessage);
+      } else {
+        await interaction.reply(errorMessage);
+      }
+    } catch (replyError) {
+      // Just log the warning. Do NOT crash the process.
+      console.warn(
+        `[Safe Reply] Could not notify user of error in /${interaction.commandName}. The interaction may have expired.`,
+        replyError.message
+      );
     }
   }
+});
+
+// --- Gemini: Global Error Handlers ---
+// These capture random network errors or unhandled rejections preventing the bot from crashing.
+process.on("unhandledRejection", (error) => {
+  console.error("Unhandled Promise Rejection:", error);
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught Exception:", error);
 });
 
 client.login(config.token);
