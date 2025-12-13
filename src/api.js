@@ -262,11 +262,13 @@ function startServer(client) {
     try {
       const period = req.query.period || "all-time";
       const limit = parseInt(req.query.limit) || 50;
+      // Gemini: Pass 'client' to service for data enrichment (Avatar/Username)
       const leaderboard = await pointsService.getLeaderboard(
         client.db,
         GUILD_ID,
         limit,
-        period
+        period,
+        client
       );
       res.json(leaderboard);
     } catch (error) {

@@ -4,6 +4,8 @@ import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import api from "./api";
 import Dashboard from "./pages/Dashboard";
 import ChallengeDetails from "./pages/ChallengeDetails";
+// Gemini: Import the new Leaderboard page
+import Leaderboard from "./pages/Leaderboard";
 import "./App.css";
 
 function App() {
@@ -102,7 +104,8 @@ function App() {
               path="/challenge/:id"
               element={<ChallengeDetails user={user} />}
             />
-            {/* Gemini: Removed /admin/create route */}
+            {/* Gemini: Added Leaderboard Route */}
+            <Route path="/leaderboard" element={<Leaderboard />} />
           </Routes>
         </main>
       </div>

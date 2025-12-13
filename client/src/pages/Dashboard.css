@@ -29,6 +29,28 @@
   font-weight: bold;
 }
 
+/* Gemini: New Leaderboard Button Style */
+.leaderboard-link-btn {
+  background: transparent;
+  border: 1px solid #4f545c;
+  color: #dcddde;
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 1rem; /* Spacing from the title/badge */
+}
+
+.leaderboard-link-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: #fff;
+  color: #fff;
+}
+
 .new-challenge-btn {
   background-color: #3ba55c; /* Discord Green */
   color: white;

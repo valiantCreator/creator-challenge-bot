@@ -1,6 +1,6 @@
 // src/services/points.js
 // Purpose: Encapsulates points logic, leaderboard queries, and badge awards.
-// Gemini: Added revokeChallengePoints for the Delete Challenge feature.
+// Gemini: Added Discord User enrichment to getLeaderboard for the Web Dashboard.
 
 /**
  * Gets a user's current point total.
@@ -171,44 +171,82 @@ async function recalculateUserPoints(db, userId, guildId) {
  * @param {string} guildId The ID of the guild.
  * @param {number} [limit=10] The number of users to return.
  * @param {('all-time'|'monthly'|'weekly')} [period='all-time'] The time period.
+ * @param {import('discord.js').Client} [client=null] Optional Discord client for data enrichment.
  * @returns {Promise<Array<object>>} A list of user point objects.
  */
-async function getLeaderboard(db, guildId, limit = 10, period = "all-time") {
+async function getLeaderboard(
+  db,
+  guildId,
+  limit = 10,
+  period = "all-time",
+  client = null
+) {
+  let rows = [];
+
+  // 1. Fetch Raw Data (IDs and Points)
   if (period === "all-time") {
     const sql = `SELECT user_id, points FROM points WHERE guild_id = $1 ORDER BY points DESC LIMIT $2`;
-    return await db.all(sql, [guildId, limit]);
-  }
-
-  let days;
-  if (period === "weekly") {
-    days = 7;
-  } else if (period === "monthly") {
-    days = 30;
+    rows = await db.all(sql, [guildId, limit]);
   } else {
-    return getLeaderboard(db, guildId, limit, "all-time");
+    let days;
+    if (period === "weekly") {
+      days = 7;
+    } else if (period === "monthly") {
+      days = 30;
+    } else {
+      // Fallback to all-time if invalid period
+      return getLeaderboard(db, guildId, limit, "all-time", client);
+    }
+
+    const sinceDate = new Date();
+    sinceDate.setDate(sinceDate.getDate() - days);
+
+    const sql = `
+      SELECT
+        user_id,
+        SUM(points_awarded) as points
+      FROM
+        point_logs
+      WHERE
+        guild_id = $1 AND created_at >= $2
+      GROUP BY
+        user_id
+      HAVING
+        SUM(points_awarded) > 0
+      ORDER BY
+        points DESC
+      LIMIT $3
+    `;
+    rows = await db.all(sql, [guildId, sinceDate, limit]);
   }
 
-  const sinceDate = new Date();
-  sinceDate.setDate(sinceDate.getDate() - days);
+  // 2. Enrich Data (If client is provided)
+  // The DB only has user_id. We need Username and Avatar from Discord.
+  if (client) {
+    const enrichedRows = await Promise.all(
+      rows.map(async (row) => {
+        try {
+          // fetch() checks cache first, then API.
+          const user = await client.users.fetch(row.user_id);
+          return {
+            ...row,
+            username: user.username,
+            avatar: user.displayAvatarURL({ extension: "png", size: 128 }),
+          };
+        } catch (error) {
+          // User might have left the server or account deleted
+          return {
+            ...row,
+            username: "Unknown User",
+            avatar: null, // Frontend should show a default placeholder
+          };
+        }
+      })
+    );
+    return enrichedRows;
+  }
 
-  const sql = `
-    SELECT
-      user_id,
-      SUM(points_awarded) as points
-    FROM
-      point_logs
-    WHERE
-      guild_id = $1 AND created_at >= $2
-    GROUP BY
-      user_id
-    HAVING
-      SUM(points_awarded) > 0
-    ORDER BY
-      points DESC
-    LIMIT $3
-  `;
-
-  return await db.all(sql, [guildId, sinceDate, limit]);
+  return rows;
 }
 
 /**
@@ -237,7 +275,7 @@ async function getUserRank(db, guildId, userId) {
 
 module.exports = {
   addPoints,
-  revokeChallengePoints, // Exported new function
+  revokeChallengePoints,
   recalculateUserPoints,
   getLeaderboard,
   getUserPoints,

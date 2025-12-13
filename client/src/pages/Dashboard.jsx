@@ -1,9 +1,10 @@
 // client/src/pages/Dashboard.jsx
 import { useState, useEffect } from "react";
+// Gemini: Import Link for navigation
+import { Link } from "react-router-dom";
 import api from "../api";
 import ChallengeCard from "../components/ChallengeCard";
 import CreateChallengeModal from "../components/CreateChallengeModal";
-// Gemini: Import the delete modal
 import DeleteChallengeModal from "../components/admin/DeleteChallengeModal";
 import "./Dashboard.css";
 
@@ -44,6 +45,11 @@ function Dashboard({ user }) {
         <div className="header-left">
           <h2>Active Challenges</h2>
           <span className="count-badge">{challenges.length} Live</span>
+
+          {/* Gemini: Added Leaderboard Link */}
+          <Link to="/leaderboard" className="leaderboard-link-btn">
+            🏆 Leaderboard
+          </Link>
         </div>
 
         {/* Gemini: Admin Create Button */}

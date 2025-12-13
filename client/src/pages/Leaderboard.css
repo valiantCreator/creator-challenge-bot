@@ -1,0 +1,171 @@
+/* client/src/pages/Leaderboard.css */
+.leaderboard-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  color: var(--text-primary, #fff);
+}
+
+/* Header & Controls */
+.lb-header {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  align-items: center;
+}
+
+@media (min-width: 600px) {
+  .lb-header {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+}
+
+.lb-title-group {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.lb-title-group h2 {
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+.back-link {
+  color: #aaa;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.2s;
+}
+
+.back-link:hover {
+  color: #fff;
+}
+
+/* Period Selector (Tabs) */
+.period-selector {
+  display: flex;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.period-selector button {
+  background: transparent;
+  border: none;
+  color: #aaa;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-radius: 6px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.period-selector button:hover {
+  color: #fff;
+}
+
+.period-selector button.active {
+  background: var(--accent, #0099ff);
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Table Layout */
+.lb-content {
+  background: var(--card-bg, #1e1e1e);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.lb-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.lb-table th {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 1rem;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+}
+
+.lb-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background 0.2s;
+}
+
+.lb-row:last-child {
+  border-bottom: none;
+}
+
+.lb-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.lb-table td {
+  padding: 1rem;
+  vertical-align: middle;
+}
+
+/* Columns */
+.col-rank {
+  width: 80px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.rank-icon {
+  font-size: 1.5rem;
+}
+
+.rank-number {
+  color: #666;
+}
+
+.col-user {
+  width: auto;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar-small {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.user-name {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.col-points {
+  text-align: right;
+  font-family: monospace;
+  font-size: 1.1rem;
+  color: var(--accent, #0099ff);
+  font-weight: bold;
+  padding-right: 2rem;
+}
+
+.lb-loading,
+.lb-empty {
+  padding: 3rem;
+  text-align: center;
+  color: #888;
+}
