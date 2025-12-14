@@ -1,6 +1,6 @@
 // src/api.js
 // Purpose: Express web server to serve data to the dashboard frontend.
-// Gemini: Updated to use Discord Native Timestamps for timezone accuracy.
+// Gemini: Updated to include User Stats in /me and PATCH /submissions/:id for editing.
 
 const express = require("express");
 const cors = require("cors");
@@ -188,10 +188,30 @@ function startServer(client) {
     }
   });
 
-  // --- Endpoint: Check Session ---
-  app.get("/api/auth/me", (req, res) => {
+  // --- Endpoint: Check Session (Enriched with Stats) ---
+  app.get("/api/auth/me", async (req, res) => {
     if (req.session && req.session.user) {
-      res.json(req.session.user);
+      try {
+        // Gemini: Fetch live stats for the "Me" Center
+        const userId = req.session.user.id;
+        const [pointsData, rankData] = await Promise.all([
+          pointsService.getUserPoints(client.db, GUILD_ID, userId),
+          pointsService.getUserRank(client.db, GUILD_ID, userId),
+        ]);
+
+        const enrichedUser = {
+          ...req.session.user,
+          points: pointsData.points,
+          rank: rankData ? rankData.rank : null,
+          totalParticipants: rankData ? rankData.total : 0,
+        };
+
+        res.json(enrichedUser);
+      } catch (error) {
+        console.error("Error fetching user stats:", error);
+        // Fallback to basic session data if DB fails
+        res.json(req.session.user);
+      }
     } else {
       res.status(401).json({ error: "Not logged in" });
     }
@@ -255,6 +275,24 @@ function startServer(client) {
         error
       );
       res.status(500).json({ error: "Failed to fetch submissions" });
+    }
+  });
+
+  // --- NEW: Get User Submissions (For Profile) ---
+  app.get("/api/my-submissions", async (req, res) => {
+    if (!req.session || !req.session.user) {
+      return res.status(401).json({ error: "Not logged in" });
+    }
+    try {
+      const submissions = await challengesService.getSubmissionsByUser(
+        client.db,
+        req.session.user.id,
+        GUILD_ID
+      );
+      res.json(submissions);
+    } catch (error) {
+      console.error("Error fetching user submissions:", error);
+      res.status(500).json({ error: "Failed to fetch history" });
     }
   });
 
@@ -354,6 +392,74 @@ function startServer(client) {
     } catch (error) {
       console.error("Vote Error:", error);
       res.status(500).json({ error: "Failed to process vote." });
+    }
+  });
+
+  // --- NEW: EDIT SUBMISSION ENDPOINT ---
+  app.patch("/api/submissions/:id", async (req, res) => {
+    if (!req.session || !req.session.user) {
+      return res.status(401).json({ error: "Must be logged in." });
+    }
+
+    const submissionId = req.params.id;
+    const { caption, link } = req.body;
+    const userId = req.session.user.id;
+
+    try {
+      // 1. Verify Ownership
+      const submission = await challengesService.getSubmissionById(
+        client.db,
+        submissionId
+      );
+      if (!submission) {
+        return res.status(404).json({ error: "Submission not found." });
+      }
+      if (submission.user_id !== userId) {
+        return res
+          .status(403)
+          .json({ error: "You can only edit your own submissions." });
+      }
+
+      // 2. Update Database
+      await challengesService.updateSubmission(client.db, submissionId, {
+        contentText: caption,
+        linkUrl: link,
+      });
+
+      // 3. Update Discord Message (Sync)
+      try {
+        const channel = await client.channels.fetch(submission.channel_id);
+        const message = await channel.messages.fetch(submission.message_id);
+
+        const embed = EmbedBuilder.from(message.embeds[0]);
+
+        // Update Description (This is the main caption)
+        embed.setDescription(caption || "*No caption provided*");
+
+        // Gemini Fix: Safe access to fields. If undefined, default to empty array.
+        const currentFields = embed.data.fields || [];
+
+        // Filter out BOTH "🔗 Link" AND "📝 Notes" to prevent duplication.
+        const newFields = currentFields.filter(
+          (f) => f.name !== "🔗 Link" && f.name !== "📝 Notes"
+        );
+
+        if (link) {
+          newFields.push({ name: "🔗 Link", value: link });
+        }
+
+        embed.setFields(newFields);
+
+        await message.edit({ embeds: [embed] });
+      } catch (discordError) {
+        console.warn("Failed to sync edit to Discord:", discordError);
+        // We still return success because the DB was updated
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Edit Submission Error:", error);
+      res.status(500).json({ error: "Failed to update submission." });
     }
   });
 

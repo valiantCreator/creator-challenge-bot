@@ -68,6 +68,12 @@ header p {
   align-items: center;
 }
 
+/* Gemini: Logo Link Style */
+.logo-link {
+  text-decoration: none;
+  color: inherit;
+}
+
 .login-btn {
   background-color: #5865f2; /* Discord Brand Color */
   color: white;
@@ -92,6 +98,20 @@ header p {
   border-radius: 50px;
 }
 
+/* Gemini: Profile Link Wrapper */
+.profile-link-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+  transition: opacity 0.2s;
+}
+
+.profile-link-wrapper:hover {
+  opacity: 0.8;
+}
+
 .user-avatar {
   width: 32px;
   height: 32px;
@@ -110,6 +130,7 @@ header p {
   cursor: pointer;
   font-size: 0.8rem;
   text-decoration: underline;
+  margin-left: 0.5rem; /* Add spacing from username */
 }
 
 .logout-btn:hover {

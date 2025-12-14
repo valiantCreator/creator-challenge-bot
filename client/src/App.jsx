@@ -4,8 +4,9 @@ import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import api from "./api";
 import Dashboard from "./pages/Dashboard";
 import ChallengeDetails from "./pages/ChallengeDetails";
-// Gemini: Import the new Leaderboard page
 import Leaderboard from "./pages/Leaderboard";
+// Gemini: Import Profile page
+import Profile from "./pages/Profile";
 import "./App.css";
 
 function App() {
@@ -74,16 +75,19 @@ function App() {
               {user ? (
                 <div className="user-profile">
                   {user.isAdmin && <span className="admin-badge">ADMIN</span>}
-                  {/* Gemini: Removed the + New Challenge link from here */}
 
-                  {user.avatar && (
-                    <img
-                      src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`}
-                      alt="Avatar"
-                      className="user-avatar"
-                    />
-                  )}
-                  <span className="username">{user.username}</span>
+                  {/* Gemini: Wrap avatar/name in Link to Profile */}
+                  <Link to="/profile" className="profile-link-wrapper">
+                    {user.avatar && (
+                      <img
+                        src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`}
+                        alt="Avatar"
+                        className="user-avatar"
+                      />
+                    )}
+                    <span className="username">{user.username}</span>
+                  </Link>
+
                   <button onClick={handleLogout} className="logout-btn">
                     Logout
                   </button>
@@ -104,8 +108,9 @@ function App() {
               path="/challenge/:id"
               element={<ChallengeDetails user={user} />}
             />
-            {/* Gemini: Added Leaderboard Route */}
             <Route path="/leaderboard" element={<Leaderboard />} />
+            {/* Gemini: Added Profile Route */}
+            <Route path="/profile" element={<Profile user={user} />} />
           </Routes>
         </main>
       </div>
