@@ -1,9 +1,10 @@
 // client/src/pages/ChallengeDetails.jsx
 // Purpose: Displays the full gallery of submissions for a specific challenge.
-// Gemini: Updated to include Winner Selection functionality.
+// Gemini: Updated to use Toast notifications.
 
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
+import toast from "react-hot-toast"; // Gemini: Import toast
 import api from "../api";
 import PickWinnerModal from "../components/admin/PickWinnerModal";
 import "./ChallengeDetails.css";
@@ -55,7 +56,7 @@ function ChallengeDetails({ user }) {
     e.preventDefault();
     // Validation: Require at least one content field
     if (!file && !caption && !link) {
-      alert("Please add a file, caption, or link!");
+      toast.error("Please add a file, caption, or link!");
       return;
     }
 
@@ -77,19 +78,19 @@ function ChallengeDetails({ user }) {
       setLink("");
       setFile(null);
       setIsSubmitting(false);
-      alert("Submission successful!");
-      fetchData(); // Refresh list
+      toast.success("Submission successful!"); // Gemini: Toast
+      fetchData();
     } catch (error) {
       console.error("Submission error:", error);
       const msg = error.response?.data?.error || "Failed to submit.";
-      alert(msg);
+      toast.error(msg); // Gemini: Toast
       setIsSubmitting(false);
     }
   };
 
   // Vote Handler
   const handleVote = async (submissionId) => {
-    if (!user) return alert("Please log in to vote!");
+    if (!user) return toast.error("Please log in to vote!");
 
     try {
       const response = await api.post(`/api/submissions/${submissionId}/vote`);
@@ -105,9 +106,12 @@ function ChallengeDetails({ user }) {
           return sub;
         })
       );
+
+      // Gemini: Optional subtle toast for voting
+      if (action === "added") toast.success("Vote added!");
     } catch (error) {
       const msg = error.response?.data?.error || "Failed to vote.";
-      alert(msg);
+      toast.error(msg);
     }
   };
 
@@ -124,8 +128,9 @@ function ChallengeDetails({ user }) {
     try {
       await api.delete(`/api/submissions/${submissionId}`);
       setSubmissions(submissions.filter((sub) => sub.id !== submissionId));
+      toast.success("Submission deleted.");
     } catch (error) {
-      alert("Failed to delete.");
+      toast.error("Failed to delete.");
       console.error(error);
     }
   };
@@ -312,8 +317,8 @@ function ChallengeDetails({ user }) {
           challengeId={challenge.id}
           onClose={() => setWinnerCandidate(null)}
           onSuccess={() => {
-            alert("Winner Announced! Challenge Closed.");
-            fetchData(); // Refresh to show closed status
+            // Gemini: Toast handled in modal or here
+            fetchData();
           }}
         />
       )}

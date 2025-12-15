@@ -1,10 +1,11 @@
 // client/src/components/admin/PickWinnerModal.jsx
 import { useState } from "react";
-import api from "../../api"; // Adjust path based on location
+import toast from "react-hot-toast"; // Gemini: Import toast
+import api from "../../api";
 import "./PickWinnerModal.css";
 
 function PickWinnerModal({ submission, challengeId, onClose, onSuccess }) {
-  const [bonusPoints, setBonusPoints] = useState(500); // Default bonus
+  const [bonusPoints, setBonusPoints] = useState(500);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleConfirm = async () => {
@@ -14,11 +15,12 @@ function PickWinnerModal({ submission, challengeId, onClose, onSuccess }) {
         submissionId: submission.id,
         bonusPoints: parseInt(bonusPoints),
       });
+      toast.success("Winner Announced! Challenge Closed."); // Gemini: Toast
       onSuccess();
       onClose();
     } catch (error) {
       console.error("Failed to pick winner:", error);
-      alert("Failed to process winner selection.");
+      toast.error("Failed to process winner selection."); // Gemini: Toast
       setIsSubmitting(false);
     }
   };
@@ -35,8 +37,6 @@ function PickWinnerModal({ submission, challengeId, onClose, onSuccess }) {
         </div>
 
         <div className="winner-preview">
-          {/* We don't have avatar URL in submission object by default unless enriched, 
-              so we use a placeholder or just name */}
           <div className="winner-info">
             <div className="winner-name">{submission.username}</div>
             <div style={{ fontSize: "0.85rem", color: "#888" }}>

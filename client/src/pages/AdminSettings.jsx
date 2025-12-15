@@ -1,6 +1,7 @@
 // client/src/pages/AdminSettings.jsx
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import toast from "react-hot-toast"; // Gemini: Import toast
 import api from "../api";
 import "./AdminSettings.css";
 
@@ -14,7 +15,7 @@ function AdminSettings() {
     points_per_vote: 0,
     vote_emoji: "👍",
   });
-  const [saveStatus, setSaveStatus] = useState(null);
+  // Gemini: Removed saveStatus state, using toast instead
 
   // Badge Settings State
   const [badges, setBadges] = useState([]);
@@ -40,20 +41,20 @@ function AdminSettings() {
       setLoading(false);
     } catch (error) {
       console.error("Failed to load settings:", error);
+      toast.error("Failed to load settings.");
       setLoading(false);
     }
   };
 
   const handleSaveSettings = async (e) => {
     e.preventDefault();
-    setSaveStatus("Saving...");
+    const loadingToast = toast.loading("Saving settings...");
     try {
       await api.post("/api/admin/settings", settings);
-      setSaveStatus("Saved successfully!");
-      setTimeout(() => setSaveStatus(null), 3000);
+      toast.success("Settings saved!", { id: loadingToast });
     } catch (error) {
       console.error("Failed to save settings:", error);
-      setSaveStatus("Error saving settings.");
+      toast.error("Error saving settings.", { id: loadingToast });
     }
   };
 
@@ -67,9 +68,10 @@ function AdminSettings() {
       const res = await api.get("/api/admin/badges");
       setBadges(res.data);
       setNewBadge({ roleId: "", pointsRequired: "" });
+      toast.success("Badge added!");
     } catch (error) {
       console.error("Failed to add badge:", error);
-      alert("Failed to add badge.");
+      toast.error("Failed to add badge.");
     }
   };
 
@@ -78,8 +80,10 @@ function AdminSettings() {
     try {
       await api.delete(`/api/admin/badges/${id}`);
       setBadges(badges.filter((b) => b.id !== id));
+      toast.success("Badge removed.");
     } catch (error) {
       console.error("Failed to delete badge:", error);
+      toast.error("Failed to delete badge.");
     }
   };
 
@@ -166,7 +170,6 @@ function AdminSettings() {
               <button type="submit" className="save-btn">
                 Save Changes
               </button>
-              {saveStatus && <span className="save-status">{saveStatus}</span>}
             </div>
           </form>
         )}

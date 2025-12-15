@@ -1,5 +1,6 @@
 // client/src/components/CreateChallengeModal.jsx
 import { useState, useEffect } from "react";
+import toast from "react-hot-toast"; // Gemini: Import toast
 import api from "../api";
 import "./CreateChallengeModal.css";
 
@@ -63,12 +64,15 @@ function CreateChallengeModal({ user, onClose, onSuccess }) {
       const res = await api.post("/api/admin/challenges", payload);
 
       if (res.data.success) {
+        toast.success("Challenge Created Successfully! 🚀"); // Gemini: Toast
         onSuccess(); // Refresh parent
         onClose(); // Close modal
       }
     } catch (err) {
       console.error("Creation Error:", err);
-      setError(err.response?.data?.error || "Failed to create challenge.");
+      const msg = err.response?.data?.error || "Failed to create challenge.";
+      setError(msg);
+      toast.error(msg); // Gemini: Toast
     } finally {
       setSubmitting(false);
     }

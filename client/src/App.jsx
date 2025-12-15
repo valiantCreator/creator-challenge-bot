@@ -1,12 +1,13 @@
 // client/src/App.jsx
 import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+// Gemini: Import Toaster
+import { Toaster } from "react-hot-toast";
 import api from "./api";
 import Dashboard from "./pages/Dashboard";
 import ChallengeDetails from "./pages/ChallengeDetails";
 import Leaderboard from "./pages/Leaderboard";
 import Profile from "./pages/Profile";
-// Gemini: Import Admin Settings
 import AdminSettings from "./pages/AdminSettings";
 import "./App.css";
 
@@ -66,6 +67,17 @@ function App() {
   return (
     <BrowserRouter>
       <div className="app-container">
+        {/* Gemini: Add Toaster for global notifications */}
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            style: {
+              background: "#333",
+              color: "#fff",
+            },
+          }}
+        />
+
         <header className="main-header">
           <div className="header-content">
             <Link to="/" className="logo-link">
@@ -111,7 +123,6 @@ function App() {
             />
             <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/profile" element={<Profile user={user} />} />
-            {/* Gemini: Added Admin Settings Route */}
             <Route path="/admin/settings" element={<AdminSettings />} />
           </Routes>
         </main>

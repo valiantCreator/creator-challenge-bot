@@ -1,6 +1,6 @@
 // client/src/components/ChallengeCard.jsx
 // Purpose: A reusable card component to display a single challenge summary.
-// Gemini: Updated with Admin Delete Button.
+// Gemini: Updated with Admin Delete Button and Closed State visual.
 
 import { Link } from "react-router-dom";
 import "./ChallengeCard.css";
@@ -29,12 +29,19 @@ function ChallengeCard({ challenge, isAdmin, onDelete }) {
     return null;
   };
 
+  // Gemini: Check if closed
+  const isClosed = !challenge.is_active;
+
   return (
-    <div className="challenge-card">
+    <div className={`challenge-card ${isClosed ? "closed" : ""}`}>
       <div className="card-header">
-        <span className={`badge ${getTypeColor(challenge.type)}`}>
-          {challenge.type}
-        </span>
+        <div className="badges-row">
+          <span className={`badge ${getTypeColor(challenge.type)}`}>
+            {challenge.type}
+          </span>
+          {/* Gemini: Closed Badge */}
+          {isClosed && <span className="badge badge-closed">CLOSED</span>}
+        </div>
 
         <div className="header-actions">
           {/* Gemini: Admin Delete Button */}
@@ -65,7 +72,7 @@ function ChallengeCard({ challenge, isAdmin, onDelete }) {
       <div className="card-footer">
         {/* This link will take us to the details page later */}
         <Link to={`/challenge/${challenge.id}`} className="view-btn">
-          View Submissions →
+          {isClosed ? "View Archive →" : "View Submissions →"}
         </Link>
       </div>
     </div>
