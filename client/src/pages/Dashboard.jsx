@@ -12,6 +12,7 @@ import "./Dashboard.css";
 function Dashboard({ user }) {
   const [challenges, setChallenges] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showClosed, setShowClosed] = useState(false); // Gemini: Toggle State
 
   // Modal States
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -20,8 +21,13 @@ function Dashboard({ user }) {
   // Helper to fetch data
   const fetchChallenges = () => {
     setLoading(true);
+    // Gemini: Fetch based on toggle state
+    const endpoint = showClosed
+      ? "/api/challenges?status=all"
+      : "/api/challenges";
+
     api
-      .get("/api/challenges")
+      .get(endpoint)
       .then((res) => {
         setChallenges(res.data);
         setLoading(false);
@@ -34,17 +40,14 @@ function Dashboard({ user }) {
 
   useEffect(() => {
     fetchChallenges();
-  }, []);
-
-  if (loading && challenges.length === 0)
-    return <div className="loading">Loading Challenges...</div>;
+  }, [showClosed]); // Re-fetch when toggle changes
 
   return (
     <div className="dashboard">
       <header className="page-header">
         <div className="header-left">
-          <h2>Active Challenges</h2>
-          <span className="count-badge">{challenges.length} Live</span>
+          <h2>{showClosed ? "All Challenges" : "Active Challenges"}</h2>
+          <span className="count-badge">{challenges.length}</span>
 
           {/* Gemini: Added Leaderboard Link */}
           <Link to="/leaderboard" className="leaderboard-link-btn">
@@ -52,27 +55,44 @@ function Dashboard({ user }) {
           </Link>
         </div>
 
-        {/* Gemini: Admin Create Button */}
-        {user && user.isAdmin && (
-          <button
-            className="new-challenge-btn"
-            onClick={() => setShowCreateModal(true)}
-          >
-            + New Challenge
-          </button>
-        )}
+        <div className="header-actions-right">
+          {/* Gemini: Toggle Button */}
+          {user && user.isAdmin && (
+            <button
+              className={`toggle-archive-btn ${showClosed ? "active" : ""}`}
+              onClick={() => setShowClosed(!showClosed)}
+            >
+              {showClosed ? "Hide Closed" : "Show Archive"}
+            </button>
+          )}
+
+          {user && user.isAdmin && (
+            <button
+              className="new-challenge-btn"
+              onClick={() => setShowCreateModal(true)}
+            >
+              + New Challenge
+            </button>
+          )}
+        </div>
       </header>
 
-      <div className="challenges-grid">
-        {challenges.map((challenge) => (
-          <ChallengeCard
-            key={challenge.id}
-            challenge={challenge}
-            isAdmin={user?.isAdmin} // Pass admin status
-            onDelete={(ch) => setChallengeToDelete(ch)} // Open delete modal
-          />
-        ))}
-      </div>
+      {loading ? (
+        <div className="loading">Loading Challenges...</div>
+      ) : challenges.length === 0 ? (
+        <div className="empty-state">No challenges found.</div>
+      ) : (
+        <div className="challenges-grid">
+          {challenges.map((challenge) => (
+            <ChallengeCard
+              key={challenge.id}
+              challenge={challenge}
+              isAdmin={user?.isAdmin}
+              onDelete={(ch) => setChallengeToDelete(ch)}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Gemini: Create Modal */}
       {showCreateModal && (

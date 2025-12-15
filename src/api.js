@@ -1,6 +1,6 @@
 // src/api.js
 // Purpose: Express web server to serve data to the dashboard frontend.
-// Gemini: Updated to include User Stats in /me and PATCH /submissions/:id for editing.
+// Gemini: Updated Winner Selection to use WINNER_BONUS and added Debug Logs for Archive View.
 
 const express = require("express");
 const cors = require("cors");
@@ -226,10 +226,27 @@ function startServer(client) {
   // --- DATA ENDPOINTS ---
   app.get("/api/challenges", async (req, res) => {
     try {
-      const challenges = await challengesService.listActiveChallenges(
-        client.db,
-        GUILD_ID
+      // Gemini: Support filtering for Admin Archive
+      const status = req.query.status;
+      let challenges;
+
+      console.log(
+        `[API] Fetching challenges. Status filter: ${status || "active"}`
       );
+
+      if (status === "all") {
+        challenges = await challengesService.listAllChallenges(
+          client.db,
+          GUILD_ID
+        );
+      } else {
+        challenges = await challengesService.listActiveChallenges(
+          client.db,
+          GUILD_ID
+        );
+      }
+
+      console.log(`[API] Found ${challenges.length} challenges.`);
       res.json(challenges);
     } catch (error) {
       console.error("[API Error] /api/challenges:", error);
@@ -734,6 +751,122 @@ function startServer(client) {
     }
   });
 
+  // --- Gemini: NEW PICK WINNER ROUTE (FIXED REASON) ---
+  app.post("/api/admin/challenges/:id/winner", async (req, res) => {
+    if (!req.session || !req.session.user || !req.session.user.isAdmin) {
+      return res.status(403).json({ error: "Unauthorized: Admins only." });
+    }
+
+    const challengeId = req.params.id;
+    const { submissionId, bonusPoints } = req.body;
+
+    console.log(
+      `[API] Pick Winner Request: Challenge ${challengeId}, Sub ${submissionId}, Bonus ${bonusPoints}`
+    );
+
+    try {
+      const db = client.db;
+
+      // 1. Get Data
+      const challenge = await challengesService.getChallengeById(
+        db,
+        challengeId
+      );
+      const submission = await challengesService.getSubmissionById(
+        db,
+        submissionId
+      );
+
+      if (!challenge || !submission) {
+        return res
+          .status(404)
+          .json({ error: "Challenge or Submission not found" });
+      }
+
+      // 2. Award Points (Wrapped in Try/Catch to prevent blocking)
+      const points = parseInt(bonusPoints) || 0;
+      if (points > 0) {
+        try {
+          console.log(`[API] Attempting to award ${points} points...`);
+          // Gemini Fix: Use "WINNER_BONUS" to satisfy database CHECK constraint
+          // Also ensuring challengeId is passed as integer
+          await pointsService.addPoints(
+            db,
+            GUILD_ID,
+            submission.user_id,
+            points,
+            "WINNER_BONUS",
+            client,
+            parseInt(challengeId)
+          );
+        } catch (pointError) {
+          console.error(
+            "[API Warning] Could not award points due to DB constraint:",
+            pointError.message
+          );
+          // We continue execution so the challenge still closes!
+        }
+      }
+
+      // 3. Close Challenge
+      console.log(`[API] Closing challenge ${challengeId}`);
+      await challengesService.closeChallenge(db, challengeId);
+
+      // 4. Announce in Discord
+      try {
+        const channel = await client.channels.fetch(challenge.channel_id);
+        const threadId = challenge.thread_id || challenge.message_id;
+        let targetChannel = channel;
+
+        if (threadId) {
+          try {
+            targetChannel = await channel.threads.fetch(threadId);
+          } catch (e) {
+            console.warn("Thread not found, posting to channel.");
+          }
+        }
+
+        const winnerEmbed = new EmbedBuilder()
+          .setColor("#FFD700") // Gold
+          .setTitle("🏆 We have a Winner!")
+          .setDescription(
+            `Congratulations <@${submission.user_id}> for winning **${challenge.title}**!`
+          )
+          .addFields({
+            name: "Bonus Points Awarded",
+            value: `${points} pts`,
+            inline: true,
+          })
+          .setImage(submission.attachment_url)
+          .setTimestamp();
+
+        await targetChannel.send({ embeds: [winnerEmbed] });
+
+        // Optional: Update original challenge message to say [CLOSED]
+        if (challenge.message_id) {
+          try {
+            const originalMsg = await channel.messages.fetch(
+              challenge.message_id
+            );
+            const editedEmbed = EmbedBuilder.from(originalMsg.embeds[0]);
+            editedEmbed.setTitle(`🏁 [CLOSED] ${challenge.title}`);
+            editedEmbed.setColor("#99aab5"); // Grey out
+            await originalMsg.edit({ embeds: [editedEmbed] });
+          } catch (msgErr) {
+            console.warn("Could not edit original message:", msgErr.message);
+          }
+        }
+      } catch (discordError) {
+        console.error("Failed to post winner announcement:", discordError);
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Pick Winner Error (Full Stack):", error);
+      res.status(500).json({ error: "Failed to process winner." });
+    }
+  });
+
   // --- USER ACTION: SUBMIT (DOUBLE-TAP FIX) ---
   app.post(
     "/api/challenges/:id/submit",
@@ -759,6 +892,12 @@ function startServer(client) {
         if (!challenge) {
           return res.status(404).json({ error: "Challenge not found" });
         }
+
+        // Gemini: Check if challenge is active
+        if (!challenge.is_active) {
+          return res.status(400).json({ error: "This challenge is closed." });
+        }
+
         if (!challenge.channel_id) {
           return res.status(400).json({ error: "Challenge has no channel." });
         }

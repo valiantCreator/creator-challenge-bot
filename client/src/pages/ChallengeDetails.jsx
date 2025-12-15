@@ -1,15 +1,15 @@
 // client/src/pages/ChallengeDetails.jsx
 // Purpose: Displays the full gallery of submissions for a specific challenge.
-// Gemini: Updated to include Voting functionality.
+// Gemini: Updated to include Winner Selection functionality.
 
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-// Gemini: Use our configured API helper instead of raw axios
 import api from "../api";
+import PickWinnerModal from "../components/admin/PickWinnerModal";
 import "./ChallengeDetails.css";
 
 function ChallengeDetails({ user }) {
-  const { id } = useParams(); // Get the ID from the URL (e.g., /challenge/5)
+  const { id } = useParams();
   const [challenge, setChallenge] = useState(null);
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,24 +20,26 @@ function ChallengeDetails({ user }) {
   const [file, setFile] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // State for Winner Modal
+  const [winnerCandidate, setWinnerCandidate] = useState(null);
+
+  const fetchData = async () => {
+    try {
+      const [chalRes, subRes] = await Promise.all([
+        api.get(`/api/challenges/${id}`),
+        api.get(`/api/challenges/${id}/submissions`),
+      ]);
+
+      setChallenge(chalRes.data);
+      setSubmissions(subRes.data);
+      setLoading(false);
+    } catch (err) {
+      console.error("Error loading details:", err);
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    // Gemini: Fetch both challenge details and submissions in parallel
-    const fetchData = async () => {
-      try {
-        const [chalRes, subRes] = await Promise.all([
-          api.get(`/api/challenges/${id}`),
-          api.get(`/api/challenges/${id}/submissions`),
-        ]);
-
-        setChallenge(chalRes.data);
-        setSubmissions(subRes.data);
-        setLoading(false);
-      } catch (err) {
-        console.error("Error loading details:", err);
-        setLoading(false);
-      }
-    };
-
     fetchData();
   }, [id]);
 
@@ -76,17 +78,16 @@ function ChallengeDetails({ user }) {
       setFile(null);
       setIsSubmitting(false);
       alert("Submission successful!");
-
-      const newSubRes = await api.get(`/api/challenges/${id}/submissions`);
-      setSubmissions(newSubRes.data);
+      fetchData(); // Refresh list
     } catch (error) {
       console.error("Submission error:", error);
-      alert("Failed to submit. Please try again.");
+      const msg = error.response?.data?.error || "Failed to submit.";
+      alert(msg);
       setIsSubmitting(false);
     }
   };
 
-  // Gemini: NEW Vote Handler
+  // Vote Handler
   const handleVote = async (submissionId) => {
     if (!user) return alert("Please log in to vote!");
 
@@ -110,7 +111,7 @@ function ChallengeDetails({ user }) {
     }
   };
 
-  // Handle the delete action
+  // Handle Delete
   const handleDelete = async (submissionId) => {
     if (
       !window.confirm(
@@ -124,7 +125,7 @@ function ChallengeDetails({ user }) {
       await api.delete(`/api/submissions/${submissionId}`);
       setSubmissions(submissions.filter((sub) => sub.id !== submissionId));
     } catch (error) {
-      alert("Failed to delete. You might not be authorized.");
+      alert("Failed to delete.");
       console.error(error);
     }
   };
@@ -154,12 +155,20 @@ function ChallengeDetails({ user }) {
           {challenge.cron_schedule && (
             <span className="deadline-badge">🔄 Recurring</span>
           )}
+          {/* Gemini: Show Closed Status */}
+          {!challenge.is_active && (
+            <span
+              className="deadline-badge"
+              style={{ color: "#ed4245", borderColor: "#ed4245" }}
+            >
+              🔒 CLOSED
+            </span>
+          )}
         </div>
       </header>
 
-      {/*Submission Form Section */}
-      {/* Only show if user is logged in */}
-      {user ? (
+      {/* Submission Form - Hide if closed */}
+      {user && challenge.is_active ? (
         <div className="submission-form-container">
           <h3>Submit Your Entry</h3>
           <form onSubmit={handleSubmit} className="submission-form">
@@ -193,6 +202,10 @@ function ChallengeDetails({ user }) {
             </div>
             {file && <div className="file-preview">Selected: {file.name}</div>}
           </form>
+        </div>
+      ) : !challenge.is_active ? (
+        <div className="login-prompt">
+          <p>🔒 This challenge is closed for new submissions.</p>
         </div>
       ) : (
         <div className="login-prompt">
@@ -258,7 +271,7 @@ function ChallengeDetails({ user }) {
                             : "Vote for this submission"
                         }
                       >
-                        {user.id === sub.user_id ? "Own Submission" : "Vote"}
+                        {user.id === sub.user_id ? "Own" : "Vote"}
                       </button>
                     )}
                   </div>
@@ -266,19 +279,44 @@ function ChallengeDetails({ user }) {
 
                 {/* Admin Controls */}
                 {user && user.isAdmin && (
-                  <button
-                    className="delete-btn"
-                    onClick={() => handleDelete(sub.id)}
-                    title="Admin Delete"
-                  >
-                    🗑️ Delete
-                  </button>
+                  <div className="admin-controls">
+                    {/* Gemini: Crown Button */}
+                    {challenge.is_active && (
+                      <button
+                        className="crown-btn"
+                        onClick={() => setWinnerCandidate(sub)}
+                        title="Pick as Winner"
+                      >
+                        👑 Crown
+                      </button>
+                    )}
+                    <button
+                      className="delete-btn"
+                      onClick={() => handleDelete(sub.id)}
+                      title="Admin Delete"
+                    >
+                      🗑️ Delete
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
           ))
         )}
       </div>
+
+      {/* Winner Modal */}
+      {winnerCandidate && (
+        <PickWinnerModal
+          submission={winnerCandidate}
+          challengeId={challenge.id}
+          onClose={() => setWinnerCandidate(null)}
+          onSuccess={() => {
+            alert("Winner Announced! Challenge Closed.");
+            fetchData(); // Refresh to show closed status
+          }}
+        />
+      )}
     </div>
   );
 }

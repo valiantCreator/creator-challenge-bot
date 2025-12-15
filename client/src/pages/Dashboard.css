@@ -1,4 +1,10 @@
 /* client/src/pages/Dashboard.css */
+.dashboard {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
 .page-header {
   display: flex;
   align-items: center;
@@ -6,6 +12,8 @@
   margin-bottom: 2rem;
   border-bottom: 1px solid #2f3136; /* Optional: adds subtle separation */
   padding-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .header-left {
@@ -51,6 +59,36 @@
   color: #fff;
 }
 
+/* Gemini: Right side actions container */
+.header-actions-right {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Gemini: Archive Toggle Button */
+.toggle-archive-btn {
+  background: transparent;
+  border: 1px solid #4f545c;
+  color: #b9bbbe;
+  padding: 0.6rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.toggle-archive-btn:hover {
+  color: #fff;
+  border-color: #fff;
+}
+
+.toggle-archive-btn.active {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: #fff;
+}
+
 .new-challenge-btn {
   background-color: #3ba55c; /* Discord Green */
   color: white;
@@ -77,4 +115,13 @@
   text-align: center;
   margin-top: 4rem;
   color: #b9bbbe;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 4rem;
+  color: #72767d;
+  font-size: 1.1rem;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
 }

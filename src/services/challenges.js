@@ -75,6 +75,17 @@ async function listActiveChallenges(db, guildId) {
 }
 
 /**
+ * Lists ALL challenges (Active & Closed) for the Admin Archive.
+ * @param {object} db The database wrapper.
+ * @param {string} guildId The ID of the guild.
+ * @returns {Promise<Array<object>>} A list of challenge objects.
+ */
+async function listAllChallenges(db, guildId) {
+  const sql = `SELECT * FROM challenges WHERE guild_id = $1 AND is_template = 0 ORDER BY id DESC`;
+  return await db.all(sql, [guildId]);
+}
+
+/**
  * Retrieves all active recurring challenge templates.
  * @param {object} db The database wrapper.
  * @returns {Promise<Array<object>>} A list of challenge template objects.
@@ -389,6 +400,7 @@ module.exports = {
   createChallenge,
   attachMessageAndThread,
   listActiveChallenges,
+  listAllChallenges, // Exported new function
   getAllRecurringChallenges,
   getChallengeById,
   closeChallenge,
