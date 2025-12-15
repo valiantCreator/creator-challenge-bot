@@ -1,7 +1,8 @@
 // client/src/pages/AdminSettings.jsx
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import toast from "react-hot-toast"; // Gemini: Import toast
+import toast from "react-hot-toast";
+import cronstrue from "cronstrue"; // Gemini: Import cron parser
 import api from "../api";
 import "./AdminSettings.css";
 
@@ -9,18 +10,22 @@ function AdminSettings() {
   const [activeTab, setActiveTab] = useState("general");
   const [loading, setLoading] = useState(true);
 
-  // General Settings State
+  // Settings State
   const [settings, setSettings] = useState({
     points_per_submission: 0,
     points_per_vote: 0,
     vote_emoji: "👍",
   });
-  // Gemini: Removed saveStatus state, using toast instead
 
-  // Badge Settings State
+  // Badge State
   const [badges, setBadges] = useState([]);
   const [roles, setRoles] = useState([]);
   const [newBadge, setNewBadge] = useState({ roleId: "", pointsRequired: "" });
+
+  // Template State
+  const [templates, setTemplates] = useState([]);
+  const [channels, setChannels] = useState([]); // Gemini: Store channels map
+  const [expandedTemplate, setExpandedTemplate] = useState(null); // Gemini: Accordion state
 
   useEffect(() => {
     fetchData();
@@ -29,20 +34,53 @@ function AdminSettings() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [settingsRes, badgesRes, rolesRes] = await Promise.all([
-        api.get("/api/admin/settings"),
-        api.get("/api/admin/badges"),
-        api.get("/api/admin/roles"),
-      ]);
+      const [settingsRes, badgesRes, rolesRes, templatesRes, channelsRes] =
+        await Promise.all([
+          api.get("/api/admin/settings"),
+          api.get("/api/admin/badges"),
+          api.get("/api/admin/roles"),
+          api.get("/api/admin/templates"),
+          api.get("/api/admin/channels"), // Gemini: Fetch channels for lookup
+        ]);
 
       setSettings(settingsRes.data);
       setBadges(badgesRes.data);
       setRoles(rolesRes.data);
+      setTemplates(templatesRes.data);
+      setChannels(channelsRes.data);
       setLoading(false);
     } catch (error) {
       console.error("Failed to load settings:", error);
       toast.error("Failed to load settings.");
       setLoading(false);
+    }
+  };
+
+  // --- Helper: Get Channel Name ---
+  const getChannelName = (id) => {
+    const ch = channels.find((c) => c.id === id);
+    return ch ? `#${ch.name}` : id;
+  };
+
+  // --- Helper: Human Readable Cron ---
+  const formatSchedule = (cron) => {
+    try {
+      let human = cronstrue.toString(cron, { verbose: true });
+
+      // Clean up redundancy
+      if (human.includes(", every day")) {
+        human = human.replace(", every day", "");
+        return `Daily ${human.charAt(0).toLowerCase() + human.slice(1)}`;
+      }
+
+      // Handle standard "At X" case
+      if (human.startsWith("At ")) {
+        return `Daily ${human.charAt(0).toLowerCase() + human.slice(1)}`;
+      }
+
+      return human;
+    } catch (e) {
+      return cron;
     }
   };
 
@@ -87,6 +125,24 @@ function AdminSettings() {
     }
   };
 
+  const handleDeleteTemplate = async (id, e) => {
+    e.stopPropagation(); // Prevent accordion toggle
+    if (
+      !window.confirm(
+        "Are you sure? This will stop future challenges from spawning."
+      )
+    )
+      return;
+    try {
+      await api.delete(`/api/admin/templates/${id}`);
+      setTemplates(templates.filter((t) => t.id !== id));
+      toast.success("Schedule cancelled.");
+    } catch (error) {
+      console.error("Failed to delete template:", error);
+      toast.error("Failed to cancel schedule.");
+    }
+  };
+
   if (loading) return <div className="loading">Loading Settings...</div>;
 
   return (
@@ -113,9 +169,16 @@ function AdminSettings() {
         >
           Badge Roles
         </button>
+        <button
+          className={activeTab === "schedules" ? "active" : ""}
+          onClick={() => setActiveTab("schedules")}
+        >
+          Schedules
+        </button>
       </div>
 
       <div className="settings-content">
+        {/* --- GENERAL TAB --- */}
         {activeTab === "general" && (
           <form onSubmit={handleSaveSettings} className="general-form">
             <div className="form-group">
@@ -159,7 +222,7 @@ function AdminSettings() {
                 onChange={(e) =>
                   setSettings({ ...settings, vote_emoji: e.target.value })
                 }
-                maxLength="4" // Allow for unicode emojis
+                maxLength="4"
               />
               <p className="help-text">
                 The emoji users click to vote (e.g., 👍, 🔥).
@@ -174,6 +237,7 @@ function AdminSettings() {
           </form>
         )}
 
+        {/* --- BADGES TAB --- */}
         {activeTab === "badges" && (
           <div className="badges-section">
             <div className="badges-list">
@@ -255,6 +319,75 @@ function AdminSettings() {
                 </button>
               </form>
             </div>
+          </div>
+        )}
+
+        {/* --- SCHEDULES TAB --- */}
+        {activeTab === "schedules" && (
+          <div className="schedules-section">
+            <h3>Active Recurring Schedules</h3>
+            {templates.length === 0 ? (
+              <p className="empty-text">No recurring challenges scheduled.</p>
+            ) : (
+              <div className="templates-list">
+                {templates.map((template) => (
+                  <div
+                    key={template.id}
+                    className={`template-item ${
+                      expandedTemplate === template.id ? "expanded" : ""
+                    }`}
+                    onClick={() =>
+                      setExpandedTemplate(
+                        expandedTemplate === template.id ? null : template.id
+                      )
+                    }
+                  >
+                    <div className="template-header">
+                      <div className="template-main-info">
+                        <span className="arrow-icon">▶</span>
+                        <div className="template-text">
+                          <span className="template-title">
+                            {template.title}
+                          </span>
+                          <span className="template-schedule">
+                            {formatSchedule(template.cron_schedule)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        className="delete-icon-btn"
+                        onClick={(e) => handleDeleteTemplate(template.id, e)}
+                        title="Cancel Schedule"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+
+                    {/* Expandable Details */}
+                    {expandedTemplate === template.id && (
+                      <div className="template-details">
+                        <div className="detail-row">
+                          <span className="label">Type:</span> {template.type}
+                        </div>
+                        <div className="detail-row">
+                          <span className="label">Channel:</span>{" "}
+                          {getChannelName(template.channel_id)}
+                        </div>
+                        <div className="detail-row">
+                          <span className="label">Description:</span>
+                          <p>{template.description}</p>
+                        </div>
+                        <div className="detail-row">
+                          <span className="label">Raw Cron:</span>{" "}
+                          <code>{template.cron_schedule}</code>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

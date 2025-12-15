@@ -189,3 +189,124 @@
   color: #72767d;
   font-style: italic;
 }
+
+.delete-icon-btn {
+  background: transparent;
+  border: none;
+  color: #b9bbbe;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.delete-icon-btn:hover {
+  background-color: rgba(237, 66, 69, 0.2);
+  color: #ed4245;
+}
+
+/* --- Gemini: Schedule Accordion Styles --- */
+
+.template-item {
+  background-color: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  margin-bottom: 0.8rem;
+  border: 1px solid transparent;
+  overflow: hidden; /* For smooth expansion */
+  transition: background-color 0.2s;
+  cursor: pointer;
+}
+
+.template-item:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.template-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+}
+
+.template-main-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.arrow-icon {
+  font-size: 0.8rem;
+  color: #b9bbbe;
+  transition: transform 0.2s ease;
+}
+
+.template-item.expanded .arrow-icon {
+  transform: rotate(90deg);
+  color: #fff;
+}
+
+.template-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.template-title {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.template-schedule {
+  color: var(--accent, #5865f2);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.template-details {
+  padding: 0 1rem 1rem 3rem; /* Indented to align with text */
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  margin-top: -0.5rem; /* Visual tweak */
+  padding-top: 1rem;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.detail-row {
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: #dcddde;
+}
+
+.detail-row .label {
+  color: #72767d;
+  font-weight: 600;
+  margin-right: 8px;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+}
+
+.detail-row p {
+  margin: 0.3rem 0 0 0;
+  color: #b9bbbe;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.detail-row code {
+  background-color: rgba(0, 0, 0, 0.3);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.85rem;
+}

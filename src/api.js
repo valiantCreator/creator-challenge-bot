@@ -1,6 +1,6 @@
 // src/api.js
 // Purpose: Express web server to serve data to the dashboard frontend.
-// Gemini: Fixed Submission Points Reason to "SUBMISSION" (Case Sensitive).
+// Gemini: Added Template Management endpoints (GET/DELETE) for the Scheduler.
 
 const express = require("express");
 const cors = require("cors");
@@ -19,7 +19,7 @@ const {
   ChannelType,
   AttachmentBuilder, // Gemini: Added for memory uploads
 } = require("discord.js");
-const { scheduleChallenge } = require("./services/scheduler");
+const { scheduleChallenge, cancelChallenge } = require("./services/scheduler"); // Gemini: Import cancelChallenge
 const cron = require("node-cron");
 
 // Configure Multer (Temporary storage for uploads)
@@ -1160,6 +1160,46 @@ function startServer(client) {
     } catch (error) {
       console.error("Error fetching roles:", error);
       res.status(500).json({ error: "Failed to fetch roles" });
+    }
+  });
+
+  // --- Gemini: NEW: TEMPLATE MANAGEMENT ENDPOINTS ---
+
+  // 7. Get Templates
+  app.get("/api/admin/templates", async (req, res) => {
+    if (!req.session || !req.session.user || !req.session.user.isAdmin) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+    try {
+      // Re-using challengesService to fetch templates
+      const templates = await challengesService.getAllRecurringChallenges(
+        client.db
+      );
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching templates:", error);
+      res.status(500).json({ error: "Failed to fetch templates" });
+    }
+  });
+
+  // 8. Delete Template
+  app.delete("/api/admin/templates/:id", async (req, res) => {
+    if (!req.session || !req.session.user || !req.session.user.isAdmin) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+    try {
+      const templateId = parseInt(req.params.id);
+
+      // Stop the cron job in memory
+      cancelChallenge(templateId);
+
+      // Delete from DB (using deleteChallenge which cascades)
+      await challengesService.deleteChallenge(client.db, templateId);
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting template:", error);
+      res.status(500).json({ error: "Failed to delete template" });
     }
   });
 
