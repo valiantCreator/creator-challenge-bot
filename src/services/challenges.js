@@ -1,6 +1,6 @@
 // src/services/challenges.js
 // Purpose: Contains all database logic for challenges, submissions, and badges.
-// Gemini: Added deleteChallenge function for admin cleanup.
+// Gemini: Updated getSubmissionsByUser to JOIN challenges for Profile titles.
 
 // --- Challenge Functions ---
 
@@ -184,14 +184,37 @@ async function deleteSubmission(db, submissionId) {
 
 /**
  * Gets all submissions by a specific user in a guild.
+ * Gemini: Updated with DEBUG LOGS to verify Title fetching.
  * @param {object} db The database wrapper.
  * @param {string} userId The user's ID.
  * @param {string} guildId The guild's ID.
- * @returns {Promise<Array<object>>} A list of submission objects.
+ * @returns {Promise<Array<object>>} A list of submission objects with challenge_title.
  */
 async function getSubmissionsByUser(db, userId, guildId) {
-  const sql = "SELECT * FROM submissions WHERE user_id = $1 AND guild_id = $2";
-  return await db.all(sql, [userId, guildId]);
+  // Gemini: Explicitly casting IDs to ensure integer matching
+  const sql = `
+    SELECT s.*, c.title as challenge_title 
+    FROM submissions s
+    LEFT JOIN challenges c ON s.challenge_id = c.id
+    WHERE s.user_id = $1 AND s.guild_id = $2
+    ORDER BY s.created_at DESC
+  `;
+
+  const results = await db.all(sql, [userId, guildId]);
+
+  // --- DEBUG LOG ---
+  if (results.length > 0) {
+    console.log("[DEBUG] getSubmissionsByUser sample:", {
+      id: results[0].id,
+      challenge_id: results[0].challenge_id,
+      challenge_title: results[0].challenge_title, // This should NOT be undefined
+    });
+  } else {
+    console.log("[DEBUG] getSubmissionsByUser found 0 records.");
+  }
+  // -----------------
+
+  return results;
 }
 
 /**

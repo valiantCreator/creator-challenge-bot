@@ -28,6 +28,28 @@ function Profile({ user }) {
     }
   }, [user]);
 
+  // Gemini: Helper to group submissions by Challenge ID
+  const getGroupedSubmissions = () => {
+    const groups = {};
+    submissions.forEach((sub) => {
+      const chId = sub.challenge_id;
+      if (!groups[chId]) {
+        groups[chId] = {
+          id: chId,
+          title: sub.challenge_title || `Challenge #${chId}`, // Fallback if title missing
+          subs: [],
+        };
+      }
+      groups[chId].subs.push(sub);
+    });
+    // Convert to array and sort by most recent submission in the group
+    return Object.values(groups).sort((a, b) => {
+      const dateA = new Date(a.subs[0].created_at);
+      const dateB = new Date(b.subs[0].created_at);
+      return dateB - dateA;
+    });
+  };
+
   if (!user) {
     return (
       <div className="profile-page">
@@ -41,6 +63,8 @@ function Profile({ user }) {
       </div>
     );
   }
+
+  const groupedSubmissions = getGroupedSubmissions();
 
   return (
     <div className="profile-page">
@@ -81,7 +105,7 @@ function Profile({ user }) {
 
       <div className="profile-content">
         <div className="section-header">
-          <h2>My Submissions</h2>
+          <h2>My Portfolio</h2>
           <Link to="/" className="back-link">
             ← Back to Dashboard
           </Link>
@@ -97,50 +121,65 @@ function Profile({ user }) {
             </Link>
           </div>
         ) : (
-          <div className="submissions-grid">
-            {submissions.map((sub) => (
-              <div key={sub.id} className="profile-sub-card">
-                <div className="sub-card-header">
-                  <span className="sub-id">#{sub.id}</span>
-                  <span className="sub-date">
-                    {new Date(sub.created_at).toLocaleDateString()}
-                  </span>
-                </div>
+          <div className="portfolio-list">
+            {groupedSubmissions.map((group) => (
+              <div key={group.id} className="challenge-group">
+                <Link
+                  to={`/challenge/${group.id}`}
+                  className="group-header-link"
+                >
+                  <h3>
+                    <span className="group-id">#{group.id}</span> {group.title}
+                  </h3>
+                  <span className="group-arrow">View Gallery →</span>
+                </Link>
 
-                {sub.attachment_url && (
-                  <div className="sub-image-container">
-                    <img
-                      src={sub.attachment_url}
-                      alt="Submission"
-                      className="sub-image"
-                    />
-                  </div>
-                )}
+                <div className="submissions-grid">
+                  {group.subs.map((sub) => (
+                    <div key={sub.id} className="profile-sub-card">
+                      <div className="sub-card-header">
+                        <span className="sub-date">
+                          {new Date(sub.created_at).toLocaleDateString()}
+                        </span>
+                        <div className="vote-count-badge">👍 {sub.votes}</div>
+                      </div>
 
-                <div className="sub-body">
-                  <p className="sub-text">
-                    {sub.content_text || <em>No caption</em>}
-                  </p>
-                  {sub.link_url && (
-                    <a
-                      href={sub.link_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="sub-link"
-                    >
-                      🔗 External Link
-                    </a>
-                  )}
-                </div>
+                      {sub.attachment_url && (
+                        <div className="sub-image-container">
+                          <img
+                            src={sub.attachment_url}
+                            alt="Submission"
+                            className="sub-image"
+                          />
+                        </div>
+                      )}
 
-                <div className="sub-footer">
-                  <div className="vote-count">👍 {sub.votes} Votes</div>
-                  <button
-                    className="edit-btn"
-                    onClick={() => setEditingSubmission(sub)}
-                  >
-                    ✏️ Edit
-                  </button>
+                      <div className="sub-body">
+                        <p className="sub-text">
+                          {sub.content_text || <em>No caption</em>}
+                        </p>
+                        {sub.link_url && (
+                          <a
+                            href={sub.link_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="sub-link"
+                          >
+                            🔗 External Link
+                          </a>
+                        )}
+                      </div>
+
+                      <div className="sub-footer">
+                        <button
+                          className="edit-btn"
+                          onClick={() => setEditingSubmission(sub)}
+                        >
+                          ✏️ Edit Entry
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}

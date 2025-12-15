@@ -101,6 +101,47 @@
   margin: 0;
 }
 
+/* Gemini: Challenge Group Styling */
+.challenge-group {
+  margin-bottom: 3rem;
+}
+
+.group-header-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.group-header-link:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.group-header-link h3 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.1rem;
+}
+
+.group-id {
+  color: #888;
+  font-family: monospace;
+  margin-right: 8px;
+}
+
+.group-arrow {
+  color: var(--accent, #0099ff);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
 .submissions-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -122,8 +163,18 @@
   background: rgba(0, 0, 0, 0.2);
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-size: 0.85rem;
   color: #888;
+}
+
+.vote-count-badge {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.8rem;
 }
 
 .sub-image-container {
@@ -166,22 +217,16 @@
   padding: 0.75rem 1rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end; /* Align edit button to right */
   align-items: center;
   background: rgba(255, 255, 255, 0.02);
-}
-
-.vote-count {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #aaa;
 }
 
 .edit-btn {
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: #ccc;
-  padding: 4px 10px;
+  padding: 6px 12px;
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.85rem;
