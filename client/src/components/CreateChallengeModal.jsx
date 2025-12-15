@@ -1,6 +1,6 @@
 // client/src/components/CreateChallengeModal.jsx
 import { useState, useEffect } from "react";
-import toast from "react-hot-toast"; // Gemini: Import toast
+import toast from "react-hot-toast";
 import api from "../api";
 import "./CreateChallengeModal.css";
 
@@ -10,13 +10,22 @@ function CreateChallengeModal({ user, onClose, onSuccess }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
+  // Tab State: 'one-time' or 'recurring'
+  const [activeTab, setActiveTab] = useState("one-time");
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     type: "Creative",
     channelId: "",
-    schedule: "",
     endsAt: "",
+  });
+
+  const [scheduleConfig, setScheduleConfig] = useState({
+    frequency: "weekly",
+    dayOfWeek: "1",
+    dayOfMonth: "1",
+    time: "10:00",
   });
 
   // Close on Escape key
@@ -51,6 +60,22 @@ function CreateChallengeModal({ user, onClose, onSuccess }) {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleScheduleChange = (e) => {
+    const { name, value } = e.target;
+    setScheduleConfig((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const generateCron = () => {
+    if (activeTab !== "recurring") return "";
+    const [hour, minute] = scheduleConfig.time.split(":");
+    if (scheduleConfig.frequency === "daily") return `${minute} ${hour} * * *`;
+    if (scheduleConfig.frequency === "weekly")
+      return `${minute} ${hour} * * ${scheduleConfig.dayOfWeek}`;
+    if (scheduleConfig.frequency === "monthly")
+      return `${minute} ${hour} ${scheduleConfig.dayOfMonth} * *`;
+    return "";
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -58,11 +83,15 @@ function CreateChallengeModal({ user, onClose, onSuccess }) {
 
     try {
       const payload = { ...formData };
-      if (!payload.schedule.trim()) delete payload.schedule;
-      if (!payload.endsAt) delete payload.endsAt;
+
+      if (activeTab === "recurring") {
+        payload.schedule = generateCron();
+        delete payload.endsAt;
+      } else {
+        if (!payload.endsAt) delete payload.endsAt;
+      }
 
       const res = await api.post("/api/admin/challenges", payload);
-
       if (res.data.success) {
         toast.success("Challenge Created Successfully! 🚀"); // Gemini: Toast
         onSuccess(); // Refresh parent
@@ -72,7 +101,7 @@ function CreateChallengeModal({ user, onClose, onSuccess }) {
       console.error("Creation Error:", err);
       const msg = err.response?.data?.error || "Failed to create challenge.";
       setError(msg);
-      toast.error(msg); // Gemini: Toast
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -94,6 +123,7 @@ function CreateChallengeModal({ user, onClose, onSuccess }) {
           <form onSubmit={handleSubmit} className="modal-form">
             {error && <div className="modal-error">{error}</div>}
 
+            {/* --- Shared Fields --- */}
             <div className="form-group">
               <label>Title</label>
               <input
@@ -153,27 +183,115 @@ function CreateChallengeModal({ user, onClose, onSuccess }) {
 
             <div className="modal-divider" />
 
-            <div className="form-row">
-              <div className="form-group">
-                <label>End Date (Optional)</label>
-                <input
-                  type="date"
-                  name="endsAt"
-                  value={formData.endsAt}
-                  onChange={handleChange}
-                />
-              </div>
+            {/* --- Scheduling Tabs --- */}
+            <div className="schedule-tabs">
+              <button
+                type="button"
+                className={`tab-btn ${
+                  activeTab === "one-time" ? "active" : ""
+                }`}
+                onClick={() => setActiveTab("one-time")}
+              >
+                📅 One-Time
+              </button>
+              <button
+                type="button"
+                className={`tab-btn ${
+                  activeTab === "recurring" ? "active" : ""
+                }`}
+                onClick={() => setActiveTab("recurring")}
+              >
+                🔄 Recurring
+              </button>
+              {/* Sliding Indicator Background handled via CSS sibling selector logic or absolute div if needed, 
+                  but active class styling is simpler and robust */}
+            </div>
 
-              <div className="form-group">
-                <label>Cron Schedule (Optional)</label>
-                <input
-                  type="text"
-                  name="schedule"
-                  value={formData.schedule}
-                  onChange={handleChange}
-                  placeholder="0 10 * * 1"
-                />
-              </div>
+            {/* --- Tab Content --- */}
+            <div className="tab-content-container">
+              {activeTab === "one-time" && (
+                <div className="tab-pane fade-in">
+                  <div className="form-group">
+                    <label>End Date (Optional)</label>
+                    <input
+                      type="date"
+                      name="endsAt"
+                      value={formData.endsAt}
+                      onChange={handleChange}
+                    />
+                    <p className="hint-text">Leave blank for open-ended.</p>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "recurring" && (
+                <div className="tab-pane fade-in">
+                  <div className="scheduler-box">
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Frequency</label>
+                        <select
+                          name="frequency"
+                          value={scheduleConfig.frequency}
+                          onChange={handleScheduleChange}
+                        >
+                          <option value="weekly">Weekly</option>
+                          <option value="daily">Daily</option>
+                          <option value="monthly">Monthly</option>
+                        </select>
+                      </div>
+
+                      <div className="form-group">
+                        <label>Time (UTC)</label>
+                        <input
+                          type="time"
+                          name="time"
+                          value={scheduleConfig.time}
+                          onChange={handleScheduleChange}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {scheduleConfig.frequency === "weekly" && (
+                      <div className="form-group">
+                        <label>Day of Week</label>
+                        <select
+                          name="dayOfWeek"
+                          value={scheduleConfig.dayOfWeek}
+                          onChange={handleScheduleChange}
+                        >
+                          <option value="1">Monday</option>
+                          <option value="2">Tuesday</option>
+                          <option value="3">Wednesday</option>
+                          <option value="4">Thursday</option>
+                          <option value="5">Friday</option>
+                          <option value="6">Saturday</option>
+                          <option value="0">Sunday</option>
+                        </select>
+                      </div>
+                    )}
+
+                    {scheduleConfig.frequency === "monthly" && (
+                      <div className="form-group">
+                        <label>Day of Month (1-31)</label>
+                        <input
+                          type="number"
+                          name="dayOfMonth"
+                          value={scheduleConfig.dayOfMonth}
+                          onChange={handleScheduleChange}
+                          min="1"
+                          max="31"
+                        />
+                      </div>
+                    )}
+
+                    <div className="cron-preview">
+                      Generates: <code>{generateCron()}</code>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="modal-actions">
@@ -190,7 +308,11 @@ function CreateChallengeModal({ user, onClose, onSuccess }) {
                 className="submit-btn"
                 disabled={submitting}
               >
-                {submitting ? "Creating..." : "Launch Challenge 🚀"}
+                {submitting
+                  ? "Creating..."
+                  : activeTab === "recurring"
+                  ? "Schedule Template"
+                  : "Launch Challenge 🚀"}
               </button>
             </div>
           </form>

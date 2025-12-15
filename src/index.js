@@ -68,6 +68,10 @@ for (const file of eventFiles) {
 client.once(Events.ClientReady, async (c) => {
   console.log(`✅ Logged in as ${c.user.tag}`);
 
+  // Gemini: Timezone Diagnostics
+  console.log(`[System] Current Server Time: ${new Date().toString()}`);
+  console.log(`[System] Current UTC Time:    ${new Date().toUTCString()}`);
+
   // Pass the db connection from the client to the scheduler.
   try {
     await initializeScheduler(c.db, c);
