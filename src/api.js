@@ -1,6 +1,6 @@
 // src/api.js
 // Purpose: Express web server to serve data to the dashboard frontend.
-// Gemini: Updated Winner Selection to use WINNER_BONUS and added Debug Logs for Archive View.
+// Gemini: Removed redundant "Notes" field from submission embed to prevent duplication.
 
 const express = require("express");
 const cors = require("cors");
@@ -965,7 +965,7 @@ function startServer(client) {
           .setColor("#0099ff")
           .setTimestamp();
 
-        if (caption) embed.addFields({ name: "📝 Notes", value: caption });
+        // Gemini: Removed the redundant "Notes" field here!
         if (link) embed.addFields({ name: "🔗 Link", value: link });
 
         // Use the captured URL if we have one
