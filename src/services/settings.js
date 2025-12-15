@@ -5,7 +5,6 @@
 const defaultSettings = {
   points_per_submission: 1,
   points_per_vote: 1,
-  // --- NEW: Add vote_emoji to default settings ---
   vote_emoji: "👍",
 };
 
@@ -32,25 +31,26 @@ async function updateGuildSettings(db, guildId, newSettings) {
   const currentSettings = await getGuildSettings(db, guildId);
   const updated = { ...currentSettings, ...newSettings };
 
-  // --- UPDATED: The upsert now includes the vote_emoji column ---
+  // Gemini: Fixed SQL to ensure vote_emoji is updated on conflict
   const sql = `
     INSERT INTO guild_settings (guild_id, points_per_submission, points_per_vote, vote_emoji)
     VALUES ($1, $2, $3, $4)
     ON CONFLICT(guild_id) DO UPDATE SET
       points_per_submission = EXCLUDED.points_per_submission,
-      points_per_vote = EXCLUDED.points_per_vote
+      points_per_vote = EXCLUDED.points_per_vote,
+      vote_emoji = EXCLUDED.vote_emoji
   `;
 
   return await db.run(sql, [
     guildId,
     updated.points_per_submission,
     updated.points_per_vote,
-    updated.vote_emoji, // Persist the existing emoji setting
+    updated.vote_emoji,
   ]);
 }
 
 /**
- * --- NEW: Sets the custom vote emoji for a guild ---
+ * Sets the custom vote emoji for a guild.
  * @param {object} db The database wrapper.
  * @param {string} guildId The ID of the guild.
  * @param {string} emoji The new emoji to use for votes.
@@ -70,6 +70,5 @@ async function setVoteEmoji(db, guildId, emoji) {
 module.exports = {
   getGuildSettings,
   updateGuildSettings,
-  // --- NEW: Export the new function ---
   setVoteEmoji,
 };

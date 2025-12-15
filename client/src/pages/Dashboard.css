@@ -59,7 +59,23 @@
   color: #fff;
 }
 
-/* Gemini: Right side actions container */
+/* Gemini: Settings Button Style */
+.settings-link-btn {
+  background: transparent;
+  border: 1px solid #4f545c;
+  color: #b9bbbe;
+  text-decoration: none;
+  padding: 0.6rem 1rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.settings-link-btn:hover {
+  color: #fff;
+  border-color: #fff;
+}
+
 .header-actions-right {
   display: flex;
   gap: 12px;
@@ -90,7 +106,7 @@
 }
 
 .new-challenge-btn {
-  background-color: #3ba55c; /* Discord Green */
+  background-color: #3ba55c;
   color: white;
   border: none;
   padding: 0.6rem 1.2rem;

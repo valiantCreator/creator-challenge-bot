@@ -5,8 +5,9 @@ import api from "./api";
 import Dashboard from "./pages/Dashboard";
 import ChallengeDetails from "./pages/ChallengeDetails";
 import Leaderboard from "./pages/Leaderboard";
-// Gemini: Import Profile page
 import Profile from "./pages/Profile";
+// Gemini: Import Admin Settings
+import AdminSettings from "./pages/AdminSettings";
 import "./App.css";
 
 function App() {
@@ -109,8 +110,9 @@ function App() {
               element={<ChallengeDetails user={user} />}
             />
             <Route path="/leaderboard" element={<Leaderboard />} />
-            {/* Gemini: Added Profile Route */}
             <Route path="/profile" element={<Profile user={user} />} />
+            {/* Gemini: Added Admin Settings Route */}
+            <Route path="/admin/settings" element={<AdminSettings />} />
           </Routes>
         </main>
       </div>

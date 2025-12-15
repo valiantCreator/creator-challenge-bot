@@ -1,6 +1,5 @@
 // client/src/pages/Dashboard.jsx
 import { useState, useEffect } from "react";
-// Gemini: Import Link for navigation
 import { Link } from "react-router-dom";
 import api from "../api";
 import ChallengeCard from "../components/ChallengeCard";
@@ -58,21 +57,26 @@ function Dashboard({ user }) {
         <div className="header-actions-right">
           {/* Gemini: Toggle Button */}
           {user && user.isAdmin && (
-            <button
-              className={`toggle-archive-btn ${showClosed ? "active" : ""}`}
-              onClick={() => setShowClosed(!showClosed)}
-            >
-              {showClosed ? "Hide Closed" : "Show Archive"}
-            </button>
-          )}
+            <>
+              {/* Gemini: Settings Button */}
+              <Link to="/admin/settings" className="settings-link-btn">
+                ⚙️ Settings
+              </Link>
 
-          {user && user.isAdmin && (
-            <button
-              className="new-challenge-btn"
-              onClick={() => setShowCreateModal(true)}
-            >
-              + New Challenge
-            </button>
+              <button
+                className={`toggle-archive-btn ${showClosed ? "active" : ""}`}
+                onClick={() => setShowClosed(!showClosed)}
+              >
+                {showClosed ? "Hide Closed" : "Show Archive"}
+              </button>
+
+              <button
+                className="new-challenge-btn"
+                onClick={() => setShowCreateModal(true)}
+              >
+                + New Challenge
+              </button>
+            </>
           )}
         </div>
       </header>

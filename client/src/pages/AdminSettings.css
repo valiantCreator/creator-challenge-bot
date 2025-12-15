@@ -1,0 +1,191 @@
+/* client/src/pages/AdminSettings.css */
+.settings-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+  color: var(--text-primary, #fff);
+}
+
+.settings-header {
+  margin-bottom: 2rem;
+}
+
+.settings-header h1 {
+  margin: 0.5rem 0 0 0;
+  font-size: 2rem;
+}
+
+/* Tabs */
+.settings-tabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid #373a40;
+}
+
+.settings-tabs button {
+  background: transparent;
+  border: none;
+  color: #b9bbbe;
+  padding: 1rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.settings-tabs button:hover {
+  color: #fff;
+}
+
+.settings-tabs button.active {
+  color: var(--accent, #5865f2);
+  border-bottom-color: var(--accent, #5865f2);
+}
+
+/* Content Container */
+.settings-content {
+  background-color: var(--card-bg, #25262b);
+  padding: 2rem;
+  border-radius: 12px;
+  border: 1px solid #373a40;
+}
+
+/* Forms */
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #dcddde;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 0.8rem;
+  background-color: #1a1b1e;
+  border: 1px solid #373a40;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--accent, #5865f2);
+}
+
+.help-text {
+  font-size: 0.85rem;
+  color: #72767d;
+  margin-top: 0.4rem;
+}
+
+.form-actions {
+  margin-top: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.save-btn {
+  background-color: var(--success, #57f287);
+  color: #000;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: opacity 0.2s;
+}
+
+.save-btn:hover {
+  opacity: 0.9;
+}
+
+.save-status {
+  color: var(--success, #57f287);
+  font-weight: 500;
+}
+
+/* Badges Section */
+.badges-list {
+  margin-bottom: 3rem;
+}
+
+.badge-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.03);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 0.8rem;
+  border: 1px solid transparent;
+}
+
+.badge-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.role-pill {
+  border: 1px solid;
+  padding: 0.2rem 0.6rem;
+  border-radius: 100px;
+  font-size: 0.85rem;
+  font-weight: bold;
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.points-req {
+  color: #b9bbbe;
+}
+
+.add-badge-form {
+  background-color: rgba(0, 0, 0, 0.2);
+  padding: 1.5rem;
+  border-radius: 8px;
+}
+
+.add-badge-form h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.form-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+.add-btn {
+  background-color: var(--accent, #5865f2);
+  color: #fff;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.add-btn:hover {
+  background-color: #4752c4;
+}
+
+.empty-text {
+  color: #72767d;
+  font-style: italic;
+}

@@ -1,6 +1,6 @@
 // src/api.js
 // Purpose: Express web server to serve data to the dashboard frontend.
-// Gemini: Removed redundant "Notes" field from submission embed to prevent duplication.
+// Gemini: Fixed Submission Points Reason to "SUBMISSION" (Case Sensitive).
 
 const express = require("express");
 const cors = require("cors");
@@ -1011,6 +1011,31 @@ function startServer(client) {
           console.warn("Could not update footer with ID:", editError);
         }
 
+        // --- Gemini: AWARD POINTS FOR SUBMISSION ---
+        try {
+          const pointsToAward = settings.points_per_submission || 0;
+          if (pointsToAward > 0) {
+            // Gemini Fix: Use "SUBMISSION" (all caps) to match DB constraint
+            await pointsService.addPoints(
+              client.db,
+              GUILD_ID,
+              user.id,
+              pointsToAward,
+              "SUBMISSION",
+              client,
+              parseInt(challengeId)
+            );
+            console.log(
+              `[API] Awarded ${pointsToAward} points for submission.`
+            );
+          }
+        } catch (pointError) {
+          console.error(
+            "[API Warning] Failed to award submission points:",
+            pointError.message
+          );
+        }
+
         res.json({ success: true, submissionId });
       } catch (error) {
         console.error("Submission Error:", error);
@@ -1018,6 +1043,125 @@ function startServer(client) {
       }
     }
   );
+
+  // --- Gemini: NEW ADMIN SETTINGS ENDPOINTS ---
+
+  // 1. Get Settings
+  app.get("/api/admin/settings", async (req, res) => {
+    if (!req.session || !req.session.user || !req.session.user.isAdmin) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+    try {
+      const settings = await settingsService.getGuildSettings(
+        client.db,
+        GUILD_ID
+      );
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+      res.status(500).json({ error: "Failed to fetch settings" });
+    }
+  });
+
+  // 2. Update Settings
+  app.post("/api/admin/settings", async (req, res) => {
+    if (!req.session || !req.session.user || !req.session.user.isAdmin) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+    try {
+      const { points_per_submission, points_per_vote, vote_emoji } = req.body;
+      await settingsService.updateGuildSettings(client.db, GUILD_ID, {
+        points_per_submission: parseInt(points_per_submission),
+        points_per_vote: parseInt(points_per_vote),
+        vote_emoji,
+      });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating settings:", error);
+      res.status(500).json({ error: "Failed to update settings" });
+    }
+  });
+
+  // 3. Get Badges
+  app.get("/api/admin/badges", async (req, res) => {
+    if (!req.session || !req.session.user || !req.session.user.isAdmin) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+    try {
+      const badges = await challengesService.getBadgeRoles(client.db, GUILD_ID);
+      // Enrich with Role Names from Discord
+      const guild = await client.guilds.fetch(GUILD_ID);
+      const enrichedBadges = badges.map((b) => {
+        const role = guild.roles.cache.get(b.role_id);
+        return {
+          ...b,
+          roleName: role ? role.name : "Unknown Role",
+          roleColor: role ? role.hexColor : "#99aab5",
+        };
+      });
+      res.json(enrichedBadges);
+    } catch (error) {
+      console.error("Error fetching badges:", error);
+      res.status(500).json({ error: "Failed to fetch badges" });
+    }
+  });
+
+  // 4. Add Badge
+  app.post("/api/admin/badges", async (req, res) => {
+    if (!req.session || !req.session.user || !req.session.user.isAdmin) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+    try {
+      const { roleId, pointsRequired } = req.body;
+      await challengesService.addBadgeRole(client.db, {
+        guildId: GUILD_ID,
+        roleId,
+        pointsRequired: parseInt(pointsRequired),
+      });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error adding badge:", error);
+      res.status(500).json({ error: "Failed to add badge" });
+    }
+  });
+
+  // 5. Delete Badge
+  app.delete("/api/admin/badges/:id", async (req, res) => {
+    if (!req.session || !req.session.user || !req.session.user.isAdmin) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+    try {
+      await challengesService.removeBadgeRole(client.db, req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting badge:", error);
+      res.status(500).json({ error: "Failed to delete badge" });
+    }
+  });
+
+  // 6. Get Discord Roles (For Dropdown)
+  app.get("/api/admin/roles", async (req, res) => {
+    if (!req.session || !req.session.user || !req.session.user.isAdmin) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+    try {
+      const guild = await client.guilds.fetch(GUILD_ID);
+      // Filter out @everyone and managed roles (bots)
+      const roles = guild.roles.cache
+        .filter((r) => r.name !== "@everyone" && !r.managed)
+        .map((r) => ({
+          id: r.id,
+          name: r.name,
+          color: r.hexColor,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      res.json(roles);
+    } catch (error) {
+      console.error("Error fetching roles:", error);
+      res.status(500).json({ error: "Failed to fetch roles" });
+    }
+  });
 
   // --- Gemini: SERVE REACT FRONTEND (FINAL FALLBACK) ---
   // This must be AFTER all API routes so we don't block them.
