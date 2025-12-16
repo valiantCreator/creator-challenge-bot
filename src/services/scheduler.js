@@ -41,25 +41,32 @@ async function runScheduledChallenge(db, challengeTemplate, client) {
     const challengeEmbed = new EmbedBuilder()
       .setTitle(`🏁 New Challenge: ${challengeTemplate.title}`)
       .setDescription(challengeTemplate.description)
-      .setColor("#5865F2")
+      .setColor("#0099ff") // Gemini: Matched API color
       .addFields(
         {
           name: "Challenge ID",
           value: `\`${newChallengeId}\``, // Use the new ID
           inline: true,
         },
-        { name: "Type", value: challengeTemplate.type, inline: true }
+        { name: "Type", value: challengeTemplate.type, inline: true },
+        {
+          name: "How to participate",
+          value: `Use the \`/submit challenge_id:${newChallengeId}\` command in this thread, or submit via the Dashboard!`,
+        }
       )
-      .setFooter({ text: "Use the /submit command in this thread!" });
+      .setFooter({
+        text: "Community members can vote with 👍 to award points!",
+      })
+      .setTimestamp(); // Gemini: Added timestamp
 
     const challengeMessage = await announceChannel.send({
       embeds: [challengeEmbed],
     });
 
     const thread = await challengeMessage.startThread({
-      name: `Challenge #${newChallengeId} - ${challengeTemplate.title}`,
+      name: `Submissions for Challenge #${newChallengeId}: ${challengeTemplate.title}`,
       autoArchiveDuration: 10080, // 1 week
-      reason: `Submissions and discussion for challenge #${newChallengeId}`,
+      reason: `Submissions and discussion for challenge #${newChallengeId}`, // Gemini: Restored reason
     });
 
     // Gemini: Await this async call
