@@ -1,12 +1,11 @@
 // client/src/pages/ChallengeDetails.jsx
-// Purpose: Displays the full gallery of submissions for a specific challenge.
-// Gemini: Updated to use Toast notifications.
-
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import toast from "react-hot-toast"; // Gemini: Import toast
+import toast from "react-hot-toast";
 import api from "../api";
 import PickWinnerModal from "../components/admin/PickWinnerModal";
+import EditSubmissionModal from "../components/EditSubmissionModal";
+import SubmissionDetailModal from "../components/SubmissionDetailModal";
 import "./ChallengeDetails.css";
 
 function ChallengeDetails({ user }) {
@@ -15,14 +14,16 @@ function ChallengeDetails({ user }) {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // State for the Submission Form
+  // State for Submission Form
   const [caption, setCaption] = useState("");
   const [link, setLink] = useState("");
   const [file, setFile] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // State for Winner Modal
+  // Modal States
   const [winnerCandidate, setWinnerCandidate] = useState(null);
+  const [editingSubmission, setEditingSubmission] = useState(null);
+  const [selectedSubmission, setSelectedSubmission] = useState(null);
 
   const fetchData = async () => {
     try {
@@ -78,12 +79,12 @@ function ChallengeDetails({ user }) {
       setLink("");
       setFile(null);
       setIsSubmitting(false);
-      toast.success("Submission successful!"); // Gemini: Toast
+      toast.success("Submission successful!");
       fetchData();
     } catch (error) {
       console.error("Submission error:", error);
       const msg = error.response?.data?.error || "Failed to submit.";
-      toast.error(msg); // Gemini: Toast
+      toast.error(msg);
       setIsSubmitting(false);
     }
   };
@@ -101,6 +102,9 @@ function ChallengeDetails({ user }) {
         prev.map((sub) => {
           if (sub.id === submissionId) {
             const newVotes = action === "added" ? sub.votes + 1 : sub.votes - 1;
+            if (selectedSubmission?.id === submissionId) {
+              setSelectedSubmission((prev) => ({ ...prev, votes: newVotes }));
+            }
             return { ...sub, votes: newVotes };
           }
           return sub;
@@ -117,17 +121,12 @@ function ChallengeDetails({ user }) {
 
   // Handle Delete
   const handleDelete = async (submissionId) => {
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this submission? This cannot be undone."
-      )
-    ) {
-      return;
-    }
+    if (!window.confirm("Are you sure? This cannot be undone.")) return;
 
     try {
       await api.delete(`/api/submissions/${submissionId}`);
       setSubmissions(submissions.filter((sub) => sub.id !== submissionId));
+      setSelectedSubmission(null);
       toast.success("Submission deleted.");
     } catch (error) {
       toast.error("Failed to delete.");
@@ -225,8 +224,15 @@ function ChallengeDetails({ user }) {
           </div>
         ) : (
           submissions.map((sub) => (
-            <div key={sub.id} className="submission-card">
-              {/* Image Attachment */}
+            <div
+              key={sub.id}
+              className="submission-card clickable"
+              onClick={(e) => {
+                if (e.target.tagName === "BUTTON" || e.target.tagName === "A")
+                  return;
+                setSelectedSubmission(sub);
+              }}
+            >
               {sub.attachment_url && (
                 <div className="media-preview">
                   <img
@@ -241,18 +247,6 @@ function ChallengeDetails({ user }) {
                 {/* Text Content */}
                 {sub.content_text && (
                   <p className="submission-text">"{sub.content_text}"</p>
-                )}
-
-                {/* External Link */}
-                {sub.link_url && (
-                  <a
-                    href={sub.link_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="submission-link"
-                  >
-                    🔗 Open Link
-                  </a>
                 )}
 
                 <div className="submission-footer">
@@ -270,11 +264,6 @@ function ChallengeDetails({ user }) {
                         }`}
                         onClick={() => handleVote(sub.id)}
                         disabled={user.id === sub.user_id}
-                        title={
-                          user.id === sub.user_id
-                            ? "You cannot vote for yourself"
-                            : "Vote for this submission"
-                        }
                       >
                         {user.id === sub.user_id ? "Own" : "Vote"}
                       </button>
@@ -282,28 +271,37 @@ function ChallengeDetails({ user }) {
                   </div>
                 </div>
 
-                {/* Admin Controls */}
-                {user && user.isAdmin && (
-                  <div className="admin-controls">
-                    {/* Gemini: Crown Button */}
-                    {challenge.is_active && (
-                      <button
-                        className="crown-btn"
-                        onClick={() => setWinnerCandidate(sub)}
-                        title="Pick as Winner"
-                      >
-                        👑 Crown
-                      </button>
-                    )}
+                {/* Gemini: Admin Controls with Text Labels */}
+                <div className="admin-controls">
+                  {user && user.id === sub.user_id && (
                     <button
-                      className="delete-btn"
-                      onClick={() => handleDelete(sub.id)}
-                      title="Admin Delete"
+                      className="edit-mini-btn"
+                      onClick={() => setEditingSubmission(sub)}
+                      title="Edit"
                     >
-                      🗑️ Delete
+                      ✏️ <span className="btn-label">Edit</span>
                     </button>
-                  </div>
-                )}
+                  )}
+
+                  {user && user.isAdmin && (
+                    <>
+                      {challenge.is_active && (
+                        <button
+                          className="crown-btn"
+                          onClick={() => setWinnerCandidate(sub)}
+                        >
+                          👑 <span className="btn-label">Crown</span>
+                        </button>
+                      )}
+                      <button
+                        className="delete-btn"
+                        onClick={() => handleDelete(sub.id)}
+                      >
+                        🗑️ <span className="btn-label">Delete</span>
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           ))
@@ -317,9 +315,31 @@ function ChallengeDetails({ user }) {
           challengeId={challenge.id}
           onClose={() => setWinnerCandidate(null)}
           onSuccess={() => {
-            // Gemini: Toast handled in modal or here
             fetchData();
           }}
+        />
+      )}
+
+      {editingSubmission && (
+        <EditSubmissionModal
+          submission={editingSubmission}
+          onClose={() => setEditingSubmission(null)}
+          onSuccess={() => {
+            fetchData();
+          }}
+        />
+      )}
+
+      {selectedSubmission && (
+        <SubmissionDetailModal
+          submission={selectedSubmission}
+          user={user}
+          challengeIsActive={challenge.is_active}
+          onClose={() => setSelectedSubmission(null)}
+          onVote={handleVote}
+          onEdit={(sub) => setEditingSubmission(sub)}
+          onDelete={handleDelete}
+          onCrown={setWinnerCandidate}
         />
       )}
     </div>

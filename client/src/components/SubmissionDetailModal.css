@@ -1,0 +1,246 @@
+/* client/src/components/SubmissionDetailModal.css */
+.lightbox-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000; /* Higher than other modals */
+  animation: fadeIn 0.2s ease-out;
+  padding: 2rem;
+}
+
+.lightbox-content {
+  background-color: #2f3136;
+  width: 100%;
+  max-width: 1000px;
+  height: 80vh; /* Fixed height for consistency */
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  animation: zoomIn 0.2s ease-out;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  color: #fff;
+  font-size: 2rem;
+  line-height: 1;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.lightbox-layout {
+  display: flex;
+  height: 100%;
+}
+
+/* Left: Media */
+.lightbox-media {
+  flex: 2;
+  background-color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.lightbox-media img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.lightbox-no-media {
+  color: #72767d;
+  font-size: 1.2rem;
+}
+
+/* Right: Details */
+.lightbox-details {
+  flex: 1;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #202225;
+  background-color: #2f3136;
+  min-width: 300px;
+}
+
+.lightbox-header {
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #40444b;
+  padding-bottom: 1rem;
+}
+
+.lightbox-header h3 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #fff;
+}
+
+.lightbox-header .author {
+  color: #b9bbbe;
+  font-size: 1rem;
+  display: block;
+  margin-top: 0.5rem;
+}
+
+.lightbox-body {
+  flex-grow: 1;
+  overflow-y: auto;
+  margin-bottom: 1.5rem;
+}
+
+.caption {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #dcddde;
+  font-style: italic;
+  white-space: pre-wrap;
+}
+
+.external-link {
+  display: block;
+  margin-top: 1rem;
+  color: #5865f2;
+  text-decoration: none;
+  font-size: 0.95rem;
+  word-break: break-all;
+}
+
+.external-link:hover {
+  text-decoration: underline;
+}
+
+.lightbox-footer {
+  border-top: 1px solid #40444b;
+  padding-top: 1.5rem;
+}
+
+.vote-area {
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.vote-count {
+  display: block;
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #57f287;
+  margin-bottom: 0.8rem;
+}
+
+.vote-btn-large {
+  width: 100%;
+  padding: 12px;
+  background-color: #5865f2;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.vote-btn-large:hover:not(.disabled) {
+  background-color: #4752c4;
+}
+
+.vote-btn-large.disabled {
+  background-color: #40444b;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.action-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.action-btn.edit {
+  border-color: #b9bbbe;
+  color: #b9bbbe;
+}
+.action-btn.edit:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.action-btn.crown {
+  border-color: #ffd700;
+  color: #ffd700;
+}
+.action-btn.crown:hover {
+  background: rgba(255, 215, 0, 0.1);
+}
+
+.action-btn.delete {
+  border-color: #ed4245;
+  color: #ed4245;
+}
+.action-btn.delete:hover {
+  background: rgba(237, 66, 69, 0.1);
+}
+
+/* Responsive Stack */
+@media (max-width: 768px) {
+  .lightbox-layout {
+    flex-direction: column;
+  }
+  .lightbox-media {
+    flex: 1;
+    min-height: 40%;
+  }
+  .lightbox-details {
+    flex: 1;
+    border-left: none;
+    border-top: 1px solid #202225;
+  }
+}
+
+@keyframes zoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

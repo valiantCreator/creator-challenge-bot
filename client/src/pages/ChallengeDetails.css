@@ -1,4 +1,6 @@
 /* client/src/pages/ChallengeDetails.css */
+/* ... (Keep existing styles) ... */
+/* [PRESERVED STYLES - DO NOT REMOVE] */
 
 .details-page {
   animation: fadeIn 0.3s ease-in;
@@ -76,6 +78,10 @@
   transition: transform 0.2s;
 }
 
+.submission-card.clickable {
+  cursor: pointer;
+}
+
 .submission-card:hover {
   transform: translateY(-4px);
   border-color: var(--accent);
@@ -131,37 +137,41 @@
   font-weight: bold;
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Gemini: Admin Controls Container */
+/* Gemini: Button Styles with Text Labels */
 .admin-controls {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   margin-top: 1rem;
+  flex-wrap: wrap;
 }
 
+/* Default: Show Text */
+.btn-label {
+  margin-left: 4px;
+}
+
+.delete-btn,
+.crown-btn,
+.edit-mini-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.8rem; /* Slightly larger padding */
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  flex: 1;
+  transition: all 0.2s;
+  font-weight: 600;
+  min-width: fit-content;
+}
+
+/* Specific Colors */
 .delete-btn {
   background-color: transparent;
   border: 1px solid #ed4245;
   color: #ed4245;
-  padding: 0.4rem 0.8rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.8rem;
-  flex: 1; /* Equal width */
-  transition: all 0.2s;
-  font-weight: 600;
 }
-
 .delete-btn:hover {
   background-color: #ed4245;
   color: white;
@@ -172,20 +182,36 @@
   background-color: rgba(255, 215, 0, 0.1);
   border: 1px solid #ffd700;
   color: #ffd700;
-  padding: 0.4rem 0.8rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.8rem;
-  flex: 1; /* Equal width */
-  transition: all 0.2s;
-  font-weight: 600;
 }
-
 .crown-btn:hover {
   background-color: #ffd700;
   color: #000;
 }
 
+.edit-mini-btn {
+  background: transparent;
+  border: 1px solid #b9bbbe;
+  color: #b9bbbe;
+}
+.edit-mini-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: #fff;
+}
+
+/* Mobile Optimization: Hide text on small screens */
+@media (max-width: 480px) {
+  .btn-label {
+    display: none;
+  }
+  .delete-btn,
+  .crown-btn,
+  .edit-mini-btn {
+    padding: 0.4rem; /* Smaller padding */
+  }
+}
+
+/* --- Form Styles --- */
 .submission-form-container {
   background-color: var(--card-bg);
   border: 1px solid #373a40;
@@ -332,4 +358,15 @@
   cursor: not-allowed;
   background-color: #232428;
   border-color: #2f3136;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
