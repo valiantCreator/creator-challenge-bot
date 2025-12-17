@@ -1,6 +1,6 @@
 // src/db.js
 // Purpose: Database connection and schema management for PostgreSQL (Supabase).
-// Gemini: Added safety handler for pool errors to prevent process crashes.
+// Gemini: Added IPv4 optimization, connection timeouts, and RETRY LOGIC for robust connectivity.
 
 const path = require("path");
 // Explicitly point to the .env file in the root directory
@@ -26,8 +26,9 @@ const pool = new Pool({
   ssl: {
     rejectUnauthorized: false, // Required for Supabase/Render connections
   },
-  // Gemini: Fail fast settings to prevent hanging requests
-  connectionTimeoutMillis: 30000, // Wait 30s max (Safe for Supabase cold starts)
+  // Gemini: Fail fast strategy.
+  // If a connection hangs for 10s, kill it so the Retry Logic can spawn a new one.
+  connectionTimeoutMillis: 10000,
   idleTimeoutMillis: 30000, // Close idle clients after 30s
   max: 10, // Limit pool size
 });
@@ -67,13 +68,38 @@ const db = {
   },
 };
 
-// 3. Initialize Schema
+// 3. Initialize Schema (With Retry Logic)
 async function init() {
   let client;
-  try {
-    client = await pool.connect();
-    console.log("🔌 Connected to PostgreSQL successfully.");
+  let retries = 5;
+  const retryDelay = 5000; // 5 seconds
 
+  // Gemini: Connection Retry Loop
+  // Attempts to connect 5 times before giving up. This handles network blips or "zombie" sockets.
+  while (retries > 0) {
+    try {
+      console.log(
+        `[DB] Attempting connection... (Remaining attempts: ${retries})`
+      );
+      client = await pool.connect();
+      console.log("🔌 Connected to PostgreSQL successfully.");
+      break; // Success! Exit loop.
+    } catch (err) {
+      console.error(`[DB] Connection failed: ${err.message}`);
+      retries -= 1;
+      if (retries === 0) {
+        console.error(
+          "❌ Fatal: Could not connect to database after 5 attempts."
+        );
+        process.exit(1);
+      }
+      console.log(`[DB] Retrying in ${retryDelay / 1000} seconds...`);
+      await new Promise((resolve) => setTimeout(resolve, retryDelay));
+    }
+  }
+
+  // Schema Creation
+  try {
     await client.query("BEGIN");
 
     // Table: Challenges
@@ -160,7 +186,7 @@ async function init() {
       );
     `);
 
-    // Gemini: NEW TABLE for Dashboard Voting
+    // Table: Submission Votes
     await client.query(`
       CREATE TABLE IF NOT EXISTS submission_votes (
         submission_id INTEGER REFERENCES submissions(id) ON DELETE CASCADE,
