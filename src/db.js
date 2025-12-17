@@ -26,6 +26,10 @@ const pool = new Pool({
   ssl: {
     rejectUnauthorized: false, // Required for Supabase/Render connections
   },
+  // Gemini: Fail fast settings to prevent hanging requests
+  connectionTimeoutMillis: 10000, // Wait 10s max for a new connection
+  idleTimeoutMillis: 30000, // Close idle clients after 30s
+  max: 10, // Limit pool size
 });
 
 // --- Gemini: CRITICAL FIX ---

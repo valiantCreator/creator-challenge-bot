@@ -2,6 +2,13 @@
 // Main bot entry point.
 // Gemini: Added robust error handling (Safe Reply + Global Catch) to prevent crashes.
 
+// --- Gemini: CRITICAL NETWORK FIX ---
+// Force Node.js to use IPv4. Render does not support IPv6, but Supabase offers it.
+// Without this, connection attempts might hang/timeout trying to reach the IPv6 address.
+const dns = require("node:dns");
+dns.setDefaultResultOrder("ipv4first");
+// ------------------------------------
+
 const fs = require("fs");
 const path = require("path");
 const {
