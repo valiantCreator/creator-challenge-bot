@@ -20,6 +20,7 @@
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .page-header h2 {
@@ -140,4 +141,63 @@
   font-size: 1.1rem;
   background: rgba(0, 0, 0, 0.1);
   border-radius: 8px;
+}
+
+/* --- Gemini: Mobile Optimization (Max Width 480px) --- */
+/* Target 480px and below (Standard Phones + 375px) */
+@media (max-width: 480px) {
+  .dashboard {
+    padding: 1rem;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1.5rem;
+  }
+
+  .header-left {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .page-header h2 {
+    font-size: 1.3rem; /* Reduce font size */
+  }
+
+  /* Full width action bar, stacked vertically */
+  .header-actions-right {
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .settings-link-btn,
+  .toggle-archive-btn,
+  .new-challenge-btn {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+    display: flex;
+    box-sizing: border-box; /* Prevent padding overflow */
+  }
+
+  /* Gemini: Leaderboard button styling for mobile */
+  .leaderboard-link-btn {
+    margin-left: 0;
+    padding: 0.6rem 1rem; /* Match other buttons padding */
+    font-size: 0.9rem;
+    width: 100%; /* Full width */
+    justify-content: center;
+    box-sizing: border-box;
+
+    /* Pastel Gold Theme */
+    border-color: #f4d03f;
+    color: #f4d03f;
+  }
+
+  .leaderboard-link-btn:hover {
+    background: rgba(255, 224, 102, 0.1);
+    color: #fff;
+  }
 }

@@ -33,6 +33,7 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
+  /* Gemini: Removed width: 100% (default block) */
 }
 
 /* Gemini: Badges Row */
@@ -152,4 +153,27 @@
   background: rgba(237, 66, 69, 0.2); /* Red tint */
   color: #ed4245;
   border: 1px solid #ed4245;
+}
+
+/* --- Gemini: Mobile Optimization --- */
+@media (max-width: 480px) {
+  .challenge-card {
+    padding: 1.2rem;
+  }
+
+  /* Force wrapping to prevent squash */
+  .card-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .badges-row {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .view-btn {
+    padding: 0.8rem;
+    font-size: 1rem;
+  }
 }

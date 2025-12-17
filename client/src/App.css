@@ -72,6 +72,9 @@ header p {
 .logo-link {
   text-decoration: none;
   color: inherit;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .login-btn {
@@ -148,4 +151,45 @@ header p {
   margin-right: 8px;
   letter-spacing: 0.05em;
   box-shadow: 0 0 5px rgba(255, 215, 0, 0.4);
+}
+
+/* --- Gemini: Mobile Optimization --- */
+/* Target tablets and smaller */
+@media (max-width: 768px) {
+  .app-container {
+    padding: 1rem;
+  }
+}
+
+/* Target Phones (including 375px) */
+@media (max-width: 480px) {
+  .logo-link h1 {
+    font-size: 1.2rem;
+    white-space: nowrap; /* Force single line */
+  }
+
+  .user-profile {
+    padding: 4px 8px;
+    background-color: transparent;
+  }
+
+  .username {
+    display: none;
+  }
+
+  .admin-badge {
+    display: none;
+  }
+
+  /* Compact Logout */
+  .logout-btn {
+    font-size: 0; /* Hide text "Logout" */
+    margin-left: 0;
+  }
+
+  .logout-btn::after {
+    content: "🚪"; /* Use Door Icon */
+    font-size: 1.2rem;
+    line-height: 1;
+  }
 }

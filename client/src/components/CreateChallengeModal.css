@@ -1,6 +1,8 @@
 /* client/src/components/CreateChallengeModal.css */
 
-/* --- Modal Container & Overlay --- */
+/* ... (Keep all existing styles) ... */
+
+/* [PRESERVED STYLES - DO NOT REMOVE] */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -85,6 +87,9 @@ label {
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  display: flex;
+  justify-content: space-between; /* Pushes checkbox to right */
+  align-items: center;
 }
 
 input,
@@ -164,12 +169,30 @@ textarea {
 
 /* --- Scheduler Styles --- */
 
+/* The checkbox container inside the label */
+.toggle-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  text-transform: none;
+  color: #5865f2;
+  cursor: pointer;
+}
+
+.toggle-switch input {
+  width: auto;
+  margin: 0;
+  cursor: pointer;
+}
+
 .scheduler-box {
   background-color: rgba(88, 101, 242, 0.1); /* Slight tint */
   padding: 1rem;
   border-radius: 8px;
   border: 1px solid #5865f2;
   margin-bottom: 1rem;
+  animation: fadeIn 0.2s ease-in;
 }
 
 .cron-preview {
@@ -265,4 +288,45 @@ textarea {
 
 .fade-in {
   animation: fadeIn 0.3s ease-out;
+}
+
+/* --- Gemini: Mobile Optimization (Max Width 480px) --- */
+@media (max-width: 480px) {
+  .modal-content {
+    width: 85%; /* 7.5% margin on each side for breathing room */
+    max-height: 80vh;
+    margin: auto;
+  }
+
+  .modal-header,
+  .modal-form {
+    padding: 1.2rem;
+  }
+
+  .modal-header h3 {
+    font-size: 1.1rem; /* Prevent wrapping */
+  }
+
+  /* Stack form rows */
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .form-group {
+    margin-bottom: 1rem;
+  }
+
+  /* Stack Actions */
+  .modal-actions {
+    flex-direction: column-reverse;
+    gap: 0.8rem;
+  }
+
+  .submit-btn,
+  .cancel-btn {
+    width: 100%;
+    text-align: center;
+    padding: 0.8rem;
+  }
 }

@@ -1,4 +1,6 @@
 /* client/src/components/SubmissionDetailModal.css */
+/* ... (Same standard content) ... */
+
 .lightbox-overlay {
   position: fixed;
   top: 0;
@@ -218,22 +220,6 @@
   background: rgba(237, 66, 69, 0.1);
 }
 
-/* Responsive Stack */
-@media (max-width: 768px) {
-  .lightbox-layout {
-    flex-direction: column;
-  }
-  .lightbox-media {
-    flex: 1;
-    min-height: 40%;
-  }
-  .lightbox-details {
-    flex: 1;
-    border-left: none;
-    border-top: 1px solid #202225;
-  }
-}
-
 @keyframes zoomIn {
   from {
     opacity: 0;
@@ -242,5 +228,47 @@
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+/* --- Gemini: Mobile Optimization --- */
+@media (max-width: 768px) {
+  .lightbox-overlay {
+    padding: 0;
+  }
+
+  .lightbox-content {
+    width: 85%; /* Breathing room */
+    height: 90vh; /* Not 100vh so user sees context */
+    max-height: 90vh;
+    border-radius: 12px; /* Restore corners */
+    margin: auto; /* Center floating */
+  }
+
+  .lightbox-layout {
+    flex-direction: column;
+  }
+
+  .lightbox-media {
+    flex: 1; /* Take up top half */
+    min-height: 40vh;
+    background-color: #000;
+  }
+
+  .lightbox-details {
+    flex: 1; /* Take up bottom half */
+    padding: 1rem;
+    border-left: none;
+    border-top: 1px solid #202225;
+    overflow-y: auto;
+  }
+
+  .lightbox-close {
+    top: 10px;
+    right: 10px;
+    width: 36px;
+    height: 36px;
+    font-size: 1.5rem;
+    background: rgba(0, 0, 0, 0.6);
   }
 }

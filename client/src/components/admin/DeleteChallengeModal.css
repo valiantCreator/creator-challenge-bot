@@ -199,3 +199,28 @@
     transform: rotate(360deg);
   }
 }
+
+/* --- Gemini: Mobile Optimization --- */
+@media (max-width: 480px) {
+  .delete-modal-content {
+    width: 80%; /* Breathing room */
+    padding: 1.5rem;
+    margin: auto;
+  }
+
+  .delete-modal-title {
+    font-size: 1.2rem; /* Single line */
+  }
+
+  .modal-actions {
+    flex-direction: column-reverse;
+    gap: 0.8rem;
+  }
+
+  .cancel-btn,
+  .delete-confirm-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 0.8rem;
+  }
+}

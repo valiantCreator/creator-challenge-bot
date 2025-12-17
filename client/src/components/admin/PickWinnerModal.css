@@ -107,6 +107,7 @@
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+  margin-top: 24px;
 }
 
 .cancel-btn {
@@ -137,4 +138,29 @@
 .confirm-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* --- Gemini: Mobile Optimization --- */
+@media (max-width: 480px) {
+  .winner-modal-content {
+    width: 80%; /* Breathing room */
+    padding: 20px;
+    margin: auto;
+  }
+
+  .winner-header h2 {
+    font-size: 1.25rem;
+  }
+
+  .modal-actions {
+    flex-direction: column-reverse;
+    gap: 10px;
+  }
+
+  .cancel-btn,
+  .confirm-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 12px;
+  }
 }

@@ -38,6 +38,8 @@
   text-decoration: none;
   font-size: 0.9rem;
   transition: color 0.2s;
+  /* Gemini: Ensure it aligns well if stacked */
+  align-self: flex-start;
 }
 
 .back-link:hover {
@@ -168,4 +170,57 @@
   padding: 3rem;
   text-align: center;
   color: #888;
+}
+
+/* --- Gemini: Mobile Optimization --- */
+/* Target 480px and below (covers 375px) */
+@media (max-width: 480px) {
+  .leaderboard-page {
+    padding: 1rem 0.5rem; /* Reduce horizontal padding to maximize table space */
+  }
+
+  /* Fix Header Alignment */
+  .lb-header {
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .lb-title-group {
+    flex-wrap: wrap; /* Allow wrapping if title is long */
+  }
+
+  .lb-title-group h2 {
+    font-size: 1.4rem;
+  }
+
+  /* Table Scrolling & Sizing */
+  .lb-content {
+    overflow-x: auto; /* Allow horizontal scroll */
+  }
+
+  .lb-table td,
+  .lb-table th {
+    padding: 0.75rem 0.5rem; /* Reduce cell padding */
+  }
+
+  /* Shrink user info to fit 375px better */
+  .user-avatar-small {
+    width: 32px;
+    height: 32px;
+  }
+
+  .user-name {
+    font-size: 0.9rem;
+  }
+
+  .col-points {
+    padding-right: 1rem;
+    font-size: 1rem;
+    white-space: nowrap; /* Prevent wrapping */
+  }
+
+  .period-selector button {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
 }

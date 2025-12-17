@@ -117,6 +117,7 @@
   margin-bottom: 1rem;
   border: 1px solid transparent;
   transition: all 0.2s;
+  overflow: hidden; /* Ensure truncation works */
 }
 
 .group-header-link:hover {
@@ -140,6 +141,7 @@
   color: var(--accent, #0099ff);
   font-size: 0.9rem;
   font-weight: 600;
+  flex-shrink: 0; /* Keep arrow visible */
 }
 
 .submissions-grid {
@@ -253,4 +255,63 @@
   color: var(--accent, #0099ff);
   text-decoration: none;
   font-weight: bold;
+}
+
+/* --- Gemini: Mobile Optimization --- */
+@media (max-width: 480px) {
+  .profile-page {
+    padding: 1rem;
+  }
+
+  .profile-header {
+    padding: 1.5rem;
+    align-items: center;
+    text-align: center;
+  }
+
+  .profile-user-info {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  /* Stack Section Header: Back button on top */
+  .section-header {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .back-link {
+    display: block; /* Ensure it takes full width/line if needed */
+    margin-bottom: 0.5rem;
+  }
+
+  .section-header h2 {
+    font-size: 1.5rem;
+  }
+
+  /* Gemini: Dynamic Font Sizing for Single Line Titles */
+  .group-header-link h3 {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* Scale font based on viewport width, clamping between min and max sizes */
+    font-size: clamp(0.7rem, 4vw, 1.1rem);
+    max-width: 100%; /* Ensure it uses available space */
+  }
+
+  .stats-row {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .stat-card {
+    flex: 1;
+    min-width: 0;
+    padding: 1rem 0.5rem;
+  }
+
+  .submissions-grid {
+    grid-template-columns: 1fr;
+  }
 }
