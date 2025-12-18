@@ -1,6 +1,6 @@
 // src/db.js
 // Purpose: Database connection and schema management for PostgreSQL (Supabase).
-// Gemini: Added IPv4 optimization, connection timeouts, and RETRY LOGIC for robust connectivity.
+// Gemini: Optimized pool settings to prevent "Zombie Connections" on cloud networks.
 
 const path = require("path");
 // Explicitly point to the .env file in the root directory
@@ -26,10 +26,15 @@ const pool = new Pool({
   ssl: {
     rejectUnauthorized: false, // Required for Supabase/Render connections
   },
-  // Gemini: Fail fast strategy.
-  // If a connection hangs for 10s, kill it so the Retry Logic can spawn a new one.
+  // Gemini: CLOUD CONNECTIVITY OPTIMIZATION
+  // 1. keepAlive: Prevents active connections from being dropped by intermediate firewalls.
+  keepAlive: true,
+  // 2. idleTimeoutMillis: 2000 (2s). Aggressively close idle connections.
+  //    This forces the pool to open a FRESH connection for every new request batch.
+  //    This completely eliminates "ETIMEDOUT" errors caused by reusing dead/stale sockets.
+  idleTimeoutMillis: 2000,
+  // 3. connectionTimeoutMillis: 10000. Wait 10s max for that fresh connection.
   connectionTimeoutMillis: 10000,
-  idleTimeoutMillis: 30000, // Close idle clients after 30s
   max: 10, // Limit pool size
 });
 
@@ -75,7 +80,7 @@ async function init() {
   const retryDelay = 5000; // 5 seconds
 
   // Gemini: Connection Retry Loop
-  // Attempts to connect 5 times before giving up. This handles network blips or "zombie" sockets.
+  // Attempts to connect 5 times before giving up. This handles network blips or "zombie" sockets at startup.
   while (retries > 0) {
     try {
       console.log(
