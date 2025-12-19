@@ -1,6 +1,6 @@
 // src/db.js
 // Purpose: Database connection and schema management for PostgreSQL (Supabase).
-// Gemini: Optimized pool settings to prevent "Zombie Connections" on cloud networks.
+// Gemini: Optimized connection lifecycle. "Short-Lived" strategy to defeat zombie sockets.
 
 const path = require("path");
 // Explicitly point to the .env file in the root directory
@@ -26,13 +26,14 @@ const pool = new Pool({
   ssl: {
     rejectUnauthorized: false, // Required for Supabase/Render connections
   },
-  // Gemini: CLOUD CONNECTIVITY OPTIMIZATION
+  // Gemini: CLOUD CONNECTIVITY OPTIMIZATION (Zero-Zombie Config)
   // 1. keepAlive: Prevents active connections from being dropped by intermediate firewalls.
   keepAlive: true,
-  // 2. idleTimeoutMillis: 2000 (2s). Aggressively close idle connections.
-  //    This forces the pool to open a FRESH connection for every new request batch.
-  //    This completely eliminates "ETIMEDOUT" errors caused by reusing dead/stale sockets.
-  idleTimeoutMillis: 2000,
+  // 2. idleTimeoutMillis: 1000 (1 second).
+  //    STRATEGY: Close connections almost immediately after use.
+  //    This ensures that every new user interaction (which usually happens >1s apart)
+  //    gets a FRESH, guaranteed-alive connection. It eliminates the chance of picking up a "dead" link.
+  idleTimeoutMillis: 1000,
   // 3. connectionTimeoutMillis: 10000. Wait 10s max for that fresh connection.
   connectionTimeoutMillis: 10000,
   max: 10, // Limit pool size
