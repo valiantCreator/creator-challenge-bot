@@ -97,6 +97,22 @@ function startServer(client) {
     });
   });
 
+  // --- Gemini: NEW Health Check for Database ---
+  // This endpoint is designed to be pinged by UptimeRobot.
+  // It performs a lightweight query to keep the database connection "warm"
+  // and prevent the Supabase pooler from dropping idle connections.
+  app.get("/api/health", async (req, res) => {
+    try {
+      // A simple, fast query to verify the connection is alive.
+      await client.db.query("SELECT 1");
+      res.status(200).json({ status: "ok", db: "connected" });
+    } catch (error) {
+      // If this fails, the app is unhealthy.
+      console.error("[API Health] Database connection failed:", error.message);
+      res.status(500).json({ status: "error", db: "disconnected" });
+    }
+  });
+
   // --- OAuth2 Endpoint: Login ---
   app.get("/api/auth/login", (req, res) => {
     const scope = "identify guilds";
