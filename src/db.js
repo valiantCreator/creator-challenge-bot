@@ -26,14 +26,17 @@ if (!process.env.DATABASE_URL) {
  * Execute a function with a fresh database client.
  * Handles connection, execution, and cleanup/error handling automatically.
  * This guarantees we never reuse a dead "zombie" connection.
+ *
+ * @param {Function} operation - The function to run with the client.
+ * @param {number} timeoutMs - Optional custom timeout (default: 10000ms).
  */
-async function withDb(operation) {
+async function withDb(operation, timeoutMs = 10000) {
   const client = new Client({
     connectionString: process.env.DATABASE_URL,
     ssl: {
       rejectUnauthorized: false, // Required for Supabase/Render connections
     },
-    connectionTimeoutMillis: 10000, // Fail fast if the DB is actually down (10s)
+    connectionTimeoutMillis: timeoutMs, // Dynamic timeout: fast for queries, slow for init
   });
 
   try {
@@ -94,6 +97,7 @@ const db = {
 async function init() {
   console.log("[DB] Initializing Schema...");
   try {
+    // Gemini: Increased startup timeout to 45 seconds to handle Supabase Cold Start + Schema Sync
     await withDb(async (client) => {
       await client.query("BEGIN");
 
@@ -199,13 +203,14 @@ async function init() {
       await client.query(
         `CREATE INDEX IF NOT EXISTS idx_point_logs_user ON point_logs (guild_id, user_id);`
       );
+      // Gemini: Index for vote lookups
       await client.query(
         `CREATE INDEX IF NOT EXISTS idx_submission_votes_user ON submission_votes (user_id);`
       );
 
       await client.query("COMMIT");
       console.log("✅ PostgreSQL Schema initialized.");
-    });
+    }, 45000); // <--- 45s Timeout for Startup
   } catch (err) {
     console.error("❌ Database initialization failed:", err);
     // We exit here because if the schema fails, the bot cannot function.
