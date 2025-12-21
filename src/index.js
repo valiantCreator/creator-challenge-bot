@@ -79,9 +79,13 @@ client.once(Events.ClientReady, async (c) => {
   console.log(`[System] Current Server Time: ${new Date().toString()}`);
   console.log(`[System] Current UTC Time:    ${new Date().toUTCString()}`);
 
-  // Pass the db connection from the client to the scheduler.
+  // Initialize Scheduler
+  // (The DB schema init happens automatically when we import 'db')
   try {
-    await initializeScheduler(c.db, c);
+    // Wait a moment for DB schema init to likely finish (optional but safer)
+    setTimeout(async () => {
+      await initializeScheduler(c.db, c);
+    }, 2000);
   } catch (error) {
     console.error("❌ Failed to initialize scheduler:", error);
   }
